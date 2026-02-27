@@ -51,7 +51,7 @@ function onPageChange(newPage)
   </header>
   <main class="row">
     <aside class="col-3">
-      <asideTable v-if="page == 'timer'" class="ps-5 pe-5"></asideTable>
+      <asideTable v-if="page == 'timer'" class="ps-3 pe-5"></asideTable>
 
     </aside>
     <section class="col-7">
@@ -87,6 +87,7 @@ header {
 
 main{
   height: 80vh;
+  max-height: 80vh;
 }
 
 

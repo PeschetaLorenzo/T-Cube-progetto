@@ -77,3 +77,28 @@ export function getWpas(wpa3=false, wpa5=false, wpa12=false, wpa100=false, wpa10
      
     return wpas 
 }
+
+export function getLast100Tempi(){
+    let tempi = []
+
+    let min = 99999
+    let prec = ''
+    for(let i = 1; i < 20; i++)
+    {
+        let t = Math.round(((Math.random() * 10)+10)*1000)/1000
+        if(prec == '')
+            prec = t
+        min = t < min ? t : min
+        tempi.push({
+            nRecord: i,
+            time: t,
+            isBest: min == t,
+            avg5: 1,
+            isInBest: Math.round(Math.random()),
+            progression: prec < t ? '▼' : t < prec ? '▲' : i == 1 ? ' ': '=',
+        })
+        prec = t
+    }
+
+    return tempi
+}
