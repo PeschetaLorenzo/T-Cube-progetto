@@ -13,7 +13,8 @@
   justify-content:baseline;
   align-items: baseline;
   min-height: 100vh;
-  max-height: max-content;
+  max-height: 100vh;
+  overflow-y: hidden;
 }
 
 a, .green {
