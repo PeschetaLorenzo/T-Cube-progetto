@@ -78,12 +78,12 @@ export function getWpas(wpa3=false, wpa5=false, wpa12=false, wpa100=false, wpa10
     return wpas 
 }
 
-export function getLast100Tempi(){
+export function getLastXTempi(nTempi){
     let tempi = []
 
     let min = 99999
     let prec = ''
-    for(let i = 1; i < 20; i++)
+    for(let i = 1; i < nTempi; i++)
     {
         let t = Math.round(((Math.random() * 10)+10)*1000)/1000
         if(prec == '')
@@ -101,4 +101,20 @@ export function getLast100Tempi(){
     }
 
     return tempi
+}
+
+
+export function getMonthData(MM, YYYY){
+    let mese = []
+
+    let dataIn = new Date(year=YYYY, monthIndex=MM)
+    console.log(new Date(year=YYYY, monthIndex=MM))
+
+    for(let i = 0; i < 30; i++)
+        mese.push({
+            tempi: getLastXTempi(Math.round(Math.random()*100)), 
+            data: dataIn})
+
+    return mese
+
 }

@@ -1,5 +1,5 @@
 <script setup>
-    import { getLast100Tempi } from '@/js/controller';
+    import { getLastXTempi, getMonthData } from '@/js/controller';
 
     import AvgTable from './asideElements/AvgTable.vue';
     import graficoCalendario from './asideElements/grafici/graficoCalendario.vue';
@@ -25,8 +25,8 @@
         </header>
     <section>
         <graficoTempi v-if="selectedVisual == 'Grafico'">Grafico</graficoTempi>
-        <graficoCalendario v-if="selectedVisual == 'Calendario'">Calendario</graficoCalendario>
-        <tabellaTempi v-if="selectedVisual == 'Tabella'" :tempi="getLast100Tempi()">Tabella</tabellaTempi>
+        <graficoCalendario v-if="selectedVisual == 'Calendario'" :mese="getMonthData(2, 2026)">Calendario</graficoCalendario>
+        <tabellaTempi v-if="selectedVisual == 'Tabella'" :tempi="getLastXTempi(5000)">Tabella</tabellaTempi>
     </section>
     </aside>
 </template>
