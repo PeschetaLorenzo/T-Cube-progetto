@@ -3,7 +3,7 @@
 > Documentazione Tecnica  
 > Versione: 1.0.0  
 > Stato: Bozza  
-> Ultimo aggiornamento: 2026-03-13  
+> Ultimo aggiornamento: 2026-03-26  
 > Autore/i: Pescheta Lorenzo
 
 ---
@@ -186,7 +186,7 @@ I requisiti non funzionali definiscono attributi di qualità.
 
 Inserire il diagramma E/R qui.
 
-![SchemaE/R](image/Schema%20E%20R.svg)
+![SchemaE/R](image/Schema%20ER.jpg)
 
 ---
 
