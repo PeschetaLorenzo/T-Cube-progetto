@@ -1,7 +1,59 @@
+<script>
+
+import { useTimerStore } from '@/stores/timer'
+import { setupEvents } from '@/js/event'
+import Cubo from './../Cubo.vue'
+ 
+export default {
+    props: {
+        wpas: {
+            type: [Number]
+        },
+        bpas: {
+            type: [Number]
+        }
+    },
+    data(){
+        return{
+            timer: useTimerStore(),
+            time: 19.244
+        }
+    },
+    computed:{
+        displayTime() {
+           return (this.timer.time / 1000).toFixed(3)
+        }
+    },
+    methods:{
+    },
+    mounted() {
+      setupEvents()
+
+    }
+}
+
+
+</script>
+
 <template>
     <section>
         <div class="timer">
-            {{time|0}}<small>.{{(time).toString().split('.')[1]}}</small>
+            <div
+            :style="{
+            color:
+                timer.phase === 'ready' ? 'green' :
+                timer.phase === 'inspection' ? 'orange' :
+                timer.phase === 'running' ? 'red' : 'white'
+            }"
+            >
+                <div v-if="timer.phase === 'inspection'">
+                {{ timer.inspectionTime }}
+                </div>
+
+                <div v-else>
+                {{ displayTime .toString().split('.')[0]}}.<small>{{ displayTime .toString().split('.')[1]}}</small>
+                </div>
+            </div>
         </div>
         <div class="infos">
             <div>
@@ -14,54 +66,11 @@
             </div>
         </div>
     </section>
+    <Cubo></Cubo>
 
 </template>
 
-<script>
 
-
-
-export default {
-    props: {
-        wpas: {
-            type: [Number]
-        },
-        bpas: {
-            type: [Number]
-        }
-    },
-    data(){
-        return{
-            
-            time: 19.244
-        }
-    },
-    computed:{
-        seconds() {
-            this.time = this.timer.time
-        }
-    },
-    methods:{
-        startTimer() {
-            console.log('start')
-        },
-        stopTimer() {
-            console.log('stop')
-
-        },
-        startInspection(){
-            console.log('ispezione')
-
-        }
-
-    },
-    mounted() {
-
-    }
-}
-
-
-</script>
 
 <style scoped>
     section{

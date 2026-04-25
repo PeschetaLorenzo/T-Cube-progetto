@@ -14,7 +14,7 @@
       Diventa un cuber professionista
       <a v-if="page!='tutorial'" target="_self" rel="noopener" @click="$emit('pageChange', 'tutorial')">TUTORIAL</a>
       <a v-if="page!='training'" target="_self" rel="noopener" @click="$emit('pageChange', 'training')">TRAINING</a>
-      <a v-if="page!='timer'" target="_self" rel="noopener" @click="$emit('pageChange', 'timer')">TIMER</a>
+      <a v-if="page!='timer' && page!='login'" target="_self" rel="noopener" @click="$emit('pageChange', 'timer')">TIMER</a>
     </h3>
   </div>
 </template>

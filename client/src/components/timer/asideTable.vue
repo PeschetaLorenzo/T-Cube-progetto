@@ -44,33 +44,28 @@
         height: 410px;
         width: 100%;
         overflow-y: auto;
-        
+        overflow: overlay;
+
         direction: rtl;
         > * {
             direction: ltr;
         }
-
-    }
-    
-    section {
-        overflow-y: auto;
-        overflow: overlay;
         scrollbar-width: auto;
-        scrollbar-color: var(--vueGreen) #222;
+        scrollbar-color: var(--vueGreen) var(--color-background-soft);
     }
-    /*
+
     section::-webkit-scrollbar {
         width: 8px;
     }
 
     section::-webkit-scrollbar-track {
-        background: #222;
+        background: var(--color-background-soft);
     }
 
     section::-webkit-scrollbar-thumb {
         background: var(--vueGreen);
         border-radius: 2px;
-    }*/
+    }
 
     select{
         border: none;
@@ -84,16 +79,16 @@
         font-weight: bold;
         color: var(--color-text);
         background-color: var(--color-background-mute);
-/*
-        @media (prefers-color-scheme: dark){
-            background-color: black;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        section {
+            scrollbar-color: var(--vueGreen) var(--color-background-mute);
         }
 
-        @media (prefers-color-scheme: light){
-            background-color: white;
-            color: var(----vt-c-white-mute);
-        }*/
-
+        section::-webkit-scrollbar-track {
+            background: var(--color-background-mute);
+        }
     }
 
     select:focus{

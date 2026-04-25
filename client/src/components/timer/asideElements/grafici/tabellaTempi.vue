@@ -16,6 +16,7 @@ export default {
     },
     created() {
         this.tempi.reverse()
+        
     },
 
 }

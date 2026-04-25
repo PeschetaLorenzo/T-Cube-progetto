@@ -1,7 +1,7 @@
 # SCHEDA DI LAVORO STUDENTE
 ## Analisi Requisiti - Ospedale San Leonardo
 
-**Nome e Cognome:** Daniele Abrate **Data:** 06/02/2026
+**Nome e Cognome:** Lorenzo Pescheta **Data:** 06/02/2026
 
 ---
 

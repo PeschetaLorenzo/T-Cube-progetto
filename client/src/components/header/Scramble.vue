@@ -8,6 +8,7 @@ export default {
             default: 18
         }
     },
+    emits: ['newScramble'],
     data(){
         return {
             scramble: [],
@@ -19,19 +20,25 @@ export default {
         
     },
     methods:{
-        generateScramble(){
+        generateScramble(emitEvent = true){
             this.prevScramble.push(this.scramble);
             this.scramble = displayScramble(generateScramble(this.lenScramble))
+            if (emitEvent) {
+                this.$emit('newScramble', this.scramble)
+            }
         },
         oldScramble(){
             this.scramble = this.prevScramble[this.prevScramble.length - 1]
             this.prevScramble.pop()
-            
+            this.$emit('newScramble', this.scramble)            
         }
     },
     created() {
-        this.generateScramble()
+        this.generateScramble(false)
     },
+    mounted() {
+        this.$emit('newScramble', this.scramble)
+    }
 
 }
 </script>
@@ -43,7 +50,6 @@ export default {
         </p>
 
     </div>
-
 </template>
 
 

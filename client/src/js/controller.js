@@ -1,4 +1,6 @@
-export function getAvgs(avg3=false, avg5=false, avg12=false, avg100=false, avg1000=false, avgAll=false)
+const URL_SERVER = 'http://localhost:3000'
+
+export async function getAvgs(avg3=false, avg5=false, avg12=false, avg100=false, avg1000=false, avgAll=false)
 {
     let avgs = []
 
@@ -23,8 +25,6 @@ export function getAvgs(avg3=false, avg5=false, avg12=false, avg100=false, avg10
      
     return avgs 
 }
-
-
 
 export function getBpas(bpa3=false, bpa5=false, bpa12=false, bpa100=false, bpa1000=false, bpaAll=false)
 {
@@ -103,7 +103,6 @@ export function getLastXTempi(nTempi){
     return tempi
 }
 
-
 export function getMonthData(MM, YYYY){
     let mese = []
 
@@ -117,4 +116,84 @@ export function getMonthData(MM, YYYY){
 
     return mese
 
+}
+
+
+export function login(email, pwd){    
+    postRequest('/login', {mail: email, pwd: pwd}).then(res => {
+        console.log(res)
+        if(res.status == 200)
+        {
+            let utente = {id: res.user.id, username: res.user.username, mail: email}
+            sessionStorage.setItem("utente", JSON.stringify(utente)); 
+            console.log(JSON.parse(sessionStorage.getItem('utente')))
+        }
+    })
+}
+
+export function registrazione(username, email, pwd){
+    postRequest('/registrazione', {username: username, mail: email, pwd: pwd}).then(res => {
+        console.log(res)
+        if(res.status == 200)
+        {
+            let utente = {id: res.user.id, username: res.user.username, mail: email}
+            sessionStorage.setItem("utente", JSON.stringify(utente)); 
+            console.log(JSON.parse(sessionStorage.getItem('utente')))
+        }
+    })
+}
+
+export function changeAccount(campo, valore)
+{
+    console.log(JSON.parse(sessionStorage.getItem('utente')))
+    let newValues = {
+        'username': JSON.parse(sessionStorage.getItem('utente')).username,
+        'mail': JSON.parse(sessionStorage.getItem('utente')).mail,
+    }
+
+    switch(campo)
+    {
+        case 'username':
+            newValues['username'] = valore
+            break;
+        case 'mail':
+            newValues['mail'] = valore
+            break;
+        case 'password':
+            newValues['pwd'] = valore
+            break;
+        
+    }
+    console.log({id: JSON.parse(sessionStorage.getItem('utente')).id, newValues: newValues})
+
+    return postRequest('/changeAccount', {id: JSON.parse(sessionStorage.getItem('utente')).id, newValues: newValues}).then(res => {
+        console.log(res)
+        if(res.status == 200)
+        {
+            let utente = {id: res.user.id, username: res.user.username, mail: res.user.mail}
+            sessionStorage.setItem("utente", JSON.stringify(utente)); 
+            console.log(JSON.parse(sessionStorage.getItem('utente')))
+        }
+        return res
+    })
+}
+
+/*
+    getRequest("/api/test-db", {}).then(res => console.log(res))
+    postRequest("/api/test-db", {}).then(res => console.log(res))
+*/
+
+
+function getRequest(service){
+    return fetch(URL_SERVER+service)
+        .then(res => res.json())
+}
+
+function postRequest(service, body){
+     return fetch(`${URL_SERVER}${service}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+      }).then(res => res.json());
 }
