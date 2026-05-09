@@ -2,7 +2,10 @@
 @import './base.css';
 
 
-
+body{
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 #app {
   max-width: 100vw;

@@ -1,4 +1,18 @@
+import { showAlert } from '@/components/utilities/alert'
+import { useTimerStore } from '@/stores/timer'
+
 const URL_SERVER = 'http://localhost:3000'
+
+export async function getTipiCubo() {
+    return getRequest('/getTipiCubo').then((res => {
+        console.log(res)
+        if(res.status == 200)
+        {
+            console.log(res)
+            return res.tipiCubo
+        }
+    }))
+}
 
 export async function getAvgs(avg3=false, avg5=false, avg12=false, avg100=false, avg1000=false, avgAll=false)
 {
@@ -30,25 +44,21 @@ export function getBpas(bpa3=false, bpa5=false, bpa12=false, bpa100=false, bpa10
 {
     let bpas = []
 
+    console.log(JSON.parse(sessionStorage.getItem('solves')))
+
     if(bpa3)
-        bpas.push(3)
-
+        bpas.push(calcolaBpa(3))
     if(bpa5)
-        bpas.push(5)
-    
+        bpas.push(calcolaBpa(5))
     if(bpa12)
-        bpas.push(12.321)
-    
+        bpas.push(calcolaBpa(12))
     if(bpa100)
-        bpas.push(100)
-    
+        bpas.push(calcolaBpa(100))
     if(bpa1000)
-        bpas.push(1000)
-    
+        bpas.push(calcolaBpa(1000))
     if(bpaAll)
-        bpas.push(0)
-
-     
+        bpas.push(calcolaBpa(JSON.parse(sessionStorage.getItem('solves') ?? '[]').length))
+    
     return bpas 
 }
 
@@ -57,49 +67,37 @@ export function getWpas(wpa3=false, wpa5=false, wpa12=false, wpa100=false, wpa10
     let wpas = []
 
     if(wpa3)
-        wpas.push(3)
+        wpas.push(calcolaWpa(3))
 
     if(wpa5)
-        wpas.push(5.435)
+        wpas.push(calcolaWpa(5))
     
     if(wpa12)
-        wpas.push(12)
+        wpas.push(calcolaWpa(12))
     
     if(wpa100)
-        wpas.push(100)
+        wpas.push(calcolaWpa(100))
     
     if(wpa1000)
-        wpas.push(1000)
+        wpas.push(calcolaWpa(1000))
     
     if(wpaAll)
-        wpas.push(0)
+        wpas.push(calcolaWpa(JSON.parse(sessionStorage.getItem('solves') ?? '[]').length))
 
      
     return wpas 
 }
 
-export function getLastXTempi(nTempi){
-    let tempi = []
+export function getLastXTempi(){
+    let tempi
 
-    let min = 99999
-    let prec = ''
-    for(let i = 1; i < nTempi; i++)
-    {
-        let t = Math.round(((Math.random() * 10)+10)*1000)/1000
-        if(prec == '')
-            prec = t
-        min = t < min ? t : min
-        tempi.push({
-            nRecord: i,
-            time: t,
-            isBest: min == t,
-            avg5: 1,
-            isInBest: Math.round(Math.random()),
-            progression: prec < t ? '▼' : t < prec ? '▲' : i == 1 ? ' ': '=',
-        })
-        prec = t
+    try {
+        tempi = JSON.parse(sessionStorage.getItem('solves') ?? '[]')
+    } catch(err) {
+        tempi = []
     }
 
+    console.log(tempi)
     return tempi
 }
 
@@ -118,6 +116,9 @@ export function getMonthData(MM, YYYY){
 
 }
 
+export function getStatistiche(){
+    return getUserStatistics()
+}
 
 export function login(email, pwd){    
     postRequest('/login', {mail: email, pwd: pwd}).then(res => {
@@ -127,6 +128,9 @@ export function login(email, pwd){
             let utente = {id: res.user.id, username: res.user.username, mail: email}
             sessionStorage.setItem("utente", JSON.stringify(utente)); 
             console.log(JSON.parse(sessionStorage.getItem('utente')))
+
+            getUserSolves()
+            getStatistiche()
         }
     })
 }
@@ -178,6 +182,93 @@ export function changeAccount(campo, valore)
     })
 }
 
+
+export function addNewSolve(){
+    const timer = useTimerStore()
+
+    if(sessionStorage.getItem('utente'))
+    {
+        let idTipo
+
+        try{
+            idTipo = JSON.parse(sessionStorage.getItem('tipoCubo'))?.idtipo ?? 1
+        }
+        catch(err)
+        {
+            idTipo = 1
+        }
+
+        let body = {
+            idUt: JSON.parse(sessionStorage.getItem('utente')).id,
+            idTipo: idTipo,
+            tempo: timer.time.toFixed(),
+            scramble: timer.scramble.toString().replaceAll(',', ' '),
+            falloIspezione: timer.falloIspezione,
+            falloMossa: false
+        }
+        console.log(body)
+
+        return postRequest("/addSolve", body).then(res => {
+            console.log(res)
+            return Promise.all([getUserSolves(), getStatistiche()]).then(() => res)
+        })
+    }
+    else
+        showAlert('Effettua il login per salvare la soluzione', 'danger')
+    
+
+}
+
+export function getUserSolves()
+{
+    if(!sessionStorage.getItem('utente')) {
+        setSolvesStorage([])
+        return Promise.resolve([])
+    }
+
+    const idUt = JSON.parse(sessionStorage.getItem('utente')).id
+    let idTipo
+
+    try{
+        idTipo = JSON.parse(sessionStorage.getItem('tipoCubo'))?.idtipo ?? 1
+    }
+    catch(err)
+    {
+        idTipo = 1
+    }
+    
+    return postRequest('/getSolves', {idUt: idUt, idTipo: idTipo}).then(res => {
+        console.log(res)
+        setSolvesStorage(res.solves)
+        return res.solves
+    })
+}
+
+function getUserStatistics(){
+    if(!sessionStorage.getItem('utente')) {
+        sessionStorage.setItem('solves', JSON.stringify([]))
+        window.dispatchEvent(new Event('solves-updated'))
+        return Promise.resolve([])
+    }
+
+    const idUt = JSON.parse(sessionStorage.getItem('utente')).id
+    let idTipo
+
+    try{
+        idTipo = JSON.parse(sessionStorage.getItem('tipoCubo'))?.idtipo ?? 1
+    }
+    catch(err)
+    {
+        idTipo = 1
+    }
+    
+    return postRequest('/getStats', {idUt: idUt, idTipo: idTipo}).then(res => {
+        console.log(res)
+        sessionStorage.setItem('statistiche', JSON.stringify(res.stats))
+        window.dispatchEvent(new Event('stats-updated'))
+        return res.stats
+    })}
+
 /*
     getRequest("/api/test-db", {}).then(res => console.log(res))
     postRequest("/api/test-db", {}).then(res => console.log(res))
@@ -196,4 +287,90 @@ function postRequest(service, body){
         credentials: 'include',
         body: JSON.stringify(body)
       }).then(res => res.json());
+}
+
+function setSolvesStorage(solves){
+    sessionStorage.setItem('solves', JSON.stringify(solves ?? []))
+    window.dispatchEvent(new Event('solves-updated'))
+}
+
+
+function calcolaBpa(nsolve){
+    if (!nsolve || nsolve <= 1)
+        return null
+
+    let solves
+
+    try {
+        solves = JSON.parse(sessionStorage.getItem('solves') ?? '[]')
+    } catch(err) {
+        solves = []
+    }
+
+    // La prossima media avra il nuovo tempo migliore escluso:
+    // quindi servono solo gli ultimi nsolve - 1 tempi gia salvati.
+    if (solves.length < nsolve - 1)
+        return null
+
+    let tempi = solves
+        .slice(-(nsolve - 1))
+        .map(solve => Number(solve.time))
+        .filter(tempo => !Number.isNaN(tempo))
+
+    if (tempi.length < nsolve - 1)
+        return null
+
+    tempi.sort((a, b) => a - b)
+
+    // Il nuovo best sarebbe il tempo piu basso ed esce dalla media;
+    // tra i tempi rimasti va escluso il worst.
+    tempi.pop()
+
+    if (tempi.length === 0)
+        return null
+
+    const somma = tempi.reduce((acc, tempo) => acc + tempo, 0)
+    const media = somma / tempi.length
+
+    return (media / 1000).toFixed(3)
+}
+
+function calcolaWpa(nsolve){
+    if (!nsolve || nsolve <= 1)
+        return null
+
+    let solves
+
+    try {
+        solves = JSON.parse(sessionStorage.getItem('solves') ?? '[]')
+    } catch(err) {
+        solves = []
+    }
+
+    // La prossima media avra il nuovo tempo peggiore escluso:
+    // quindi servono solo gli ultimi nsolve - 1 tempi gia salvati.
+    if (solves.length < nsolve - 1)
+        return null
+
+    let tempi = solves
+        .slice(-(nsolve - 1))
+        .map(solve => Number(solve.time))
+        .filter(tempo => !Number.isNaN(tempo))
+
+    if (tempi.length < nsolve - 1)
+        return null
+
+    tempi.sort((a, b) => a - b)
+
+    // Il nuovo worst sarebbe il tempo piu alto ed esce dalla media;
+    // tra i tempi rimasti va escluso il best.
+    tempi.shift()
+
+    if (tempi.length === 0)
+        return null
+
+    const somma = tempi.reduce((acc, tempo) => acc + tempo, 0)
+    const media = somma / tempi.length
+
+    return (media / 1000).toFixed(3)
 }

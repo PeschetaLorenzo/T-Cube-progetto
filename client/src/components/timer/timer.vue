@@ -7,16 +7,17 @@ import Cubo from './../Cubo.vue'
 export default {
     props: {
         wpas: {
-            type: [Number]
+            type: Array,
+            default: () => []
         },
         bpas: {
-            type: [Number]
+            type: Array,
+            default: () => []
         }
     },
     data(){
         return{
             timer: useTimerStore(),
-            time: 19.244
         }
     },
     computed:{

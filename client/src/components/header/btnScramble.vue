@@ -1,13 +1,26 @@
-<script setup>
+<script>
+import { useTimerStore } from '@/stores/timer'
 
+export default {
+    props: {
 
+    },
+    data(){
+        return{
+            timer: useTimerStore()
+        }
+    },
+    methods: {
+
+    }
+}
 </script>
 
 <template>
     <div>
-        <button class="btn m-1" @click="$emit('btnAction', 'oldScramble')">Ripeti scramble</button>
-        <button class="btn m-1" @click="$emit('btnAction', 'generate')">Nuovo scramble</button>
-        <button class="btn m-1" >Riconosci scramble</button>
+        <button class="btn m-1" :disabled="timer.phase != 'idle'" @click="$emit('btnAction', 'oldScramble')">Ripeti scramble</button>
+        <button class="btn m-1" :disabled="timer.phase != 'idle'" @click="$emit('btnAction', 'generate')">Nuovo scramble</button>
+        <button class="btn m-1" :disabled="timer.phase != 'idle'" >Riconosci scramble</button>
     </div>
 </template>
 

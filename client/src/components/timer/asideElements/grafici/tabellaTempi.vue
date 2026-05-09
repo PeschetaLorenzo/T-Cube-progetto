@@ -8,22 +8,19 @@ export default {
         
     },
     computed:{
-        
+        tempiTabella(){
+            return [...(this.tempi ?? [])].reverse()
+        }
     },
     methods:{
 
         
     },
-    created() {
-        this.tempi.reverse()
-        
-    },
-
 }
 </script>
 
 <template>
-    <table>
+    <table v-if="tempi != undefined">
         <thead>
             <tr>
                 <th>n</th>
@@ -33,18 +30,16 @@ export default {
             </tr>
         </thead>
         <tbody>
-            <tr v-for="tempo in tempi">
+            <tr v-for="tempo in tempiTabella" :key="tempo.nRecord">
                 <td>{{tempo.nRecord}}</td>
-                <td :class="{ best: tempo.isBest}">{{tempo.time}}</td>
-                <td :class="{ best: tempo.isInBest}">{{tempo.avg5}}</td>
-                <td class="progression">{{tempo.progression}}</td>
+                <td :class="{ best: tempo.isBestSingle}">{{tempo.time/1000}}</td>
+                <td :class="{ best: tempo.isBestAvg5}">{{tempo.avg5/1000}}</td>
+                <td class="progression">{{tempo.progression == 1 ? '▼' : tempo.progression == -1 ? '▲' : tempo.progression == 0 ? '=' : ' '}}</td>
             </tr>
         </tbody>
     </table>
 
 </template>
-
-
 <style scoped>
     template{
     }

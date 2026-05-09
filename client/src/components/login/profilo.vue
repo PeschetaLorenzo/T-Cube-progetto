@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import ProfileField from './ProfileField.vue'
+import ProfileField from '../utilities/ProfileField.vue'
 import {changeAccount} from './../../js/controller.js'
 
 

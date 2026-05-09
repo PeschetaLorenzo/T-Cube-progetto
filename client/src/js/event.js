@@ -15,7 +15,10 @@ export function setupEvents() {
 
     holdTimer = setTimeout(() => {
       longPress = true
-      timer.setReady()
+      if(timer.phase === 'inspection')
+        timer.setReady()
+      //else 
+        //timer.startInspection()
     }, DELAY)
   })
 

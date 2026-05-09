@@ -1,47 +1,70 @@
 <script setup>
-    import { getLastXTempi, getMonthData } from '@/js/controller';
+    import { getLastXTempi, getMonthData, getStatistiche } from '@/js/controller';
 
     import AvgTable from './asideElements/AvgTable.vue';
     import graficoCalendario from './asideElements/grafici/graficoCalendario.vue';
     import graficoTempi from './asideElements/grafici/graficoTempi.vue';
     import tabellaTempi from './asideElements/grafici/tabellaTempi.vue';
+    import SelectVisual from './../utilities/SelectVisual.vue';
 
     
-    import { ref } from 'vue'
+    import { onBeforeUnmount, onMounted, ref } from 'vue'
 
     const selectedVisual = ref('Tabella')
+    const tempi = ref(getLastXTempi())
+    const statistics = ref([])
+
+    const optionValues = ['Tabella', 'Grafico', 'Calendario']
+
+    function updateTempi() {
+        tempi.value = getLastXTempi()
+    }
+
+    function updateStats() {
+        statistics.value = JSON.parse(sessionStorage.getItem('statistiche') ?? '[]')
+    }
+
+    onMounted(() => {
+        getStatistiche().then(stats => {
+            statistics.value = stats ?? []
+        })
+
+        window.addEventListener('solves-updated', updateTempi)
+        window.addEventListener('stats-updated', updateStats)
+    })
+
+    onBeforeUnmount(() => {
+        window.removeEventListener('solves-updated', updateTempi)
+        window.removeEventListener('stats-updated', updateStats)
+    })
 </script >
 
 <template>
     <aside>
-        <AvgTable></AvgTable>
-        <header>
-            Seleziona il metodo di visualizzazione
-            <select class="" v-model="selectedVisual">
-                <option value="Tabella">Tabella</option>
-                <option value="Grafico">Grafico</option>
-                <option value="Calendario">Calendario</option>
-            </select>
-        </header>
-    <section>
-        <graficoTempi v-if="selectedVisual == 'Grafico'">Grafico</graficoTempi>
-        <graficoCalendario v-if="selectedVisual == 'Calendario'" :mese="getMonthData(2, 2026)">Calendario</graficoCalendario>
-        <tabellaTempi v-if="selectedVisual == 'Tabella'" :tempi="getLastXTempi(5000)">Tabella</tabellaTempi>
-    </section>
+        <AvgTable :stats="statistics"></AvgTable>
+        <SelectVisual 
+            :labelText="`Seleziona il metodo di visualizzazione`"
+            :optionValues="optionValues"
+            :optionTexts="optionValues"
+            v-model="selectedVisual"
+        ></SelectVisual>
+        <section>
+            <graficoTempi v-if="selectedVisual == 'Grafico'">Grafico</graficoTempi>
+            <graficoCalendario v-if="selectedVisual == 'Calendario'" :mese="getMonthData(2, 2026)">Calendario</graficoCalendario>
+            <tabellaTempi v-if="selectedVisual == 'Tabella'" :tempi="tempi">Tabella</tabellaTempi>
+        </section>
     </aside>
 </template>
 
 
 <style scoped>
-    header{
-        margin-top: 20px;
-    }
     aside{
         width: max-content;
     }
 
     section{
-        height: 410px;
+        height: 80%;
+        max-height: 80%;
         width: 100%;
         overflow-y: auto;
         overflow: overlay;
@@ -67,20 +90,6 @@
         border-radius: 2px;
     }
 
-    select{
-        border: none;
-        border-bottom: 1pt solid var(--vueGreen);
-        width: 100%;
-        border-radius: 5%;
-        height: 30px;
-        margin-top: 3px;
-        font-size: 15pt;
-        text-align: center;
-        font-weight: bold;
-        color: var(--color-text);
-        background-color: var(--color-background-mute);
-    }
-
     @media (prefers-color-scheme: dark) {
         section {
             scrollbar-color: var(--vueGreen) var(--color-background-mute);
@@ -90,16 +99,4 @@
             background: var(--color-background-mute);
         }
     }
-
-    select:focus{
-        outline: none;
-        outline: 1pt solid var(--vueGreen);
-        -moz-outline-radius: 50%;
-        
-    }
-
-    
-
-    
-
 </style>

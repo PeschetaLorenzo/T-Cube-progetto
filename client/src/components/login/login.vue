@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import FormInput from './FormInput.vue'
-import FormButton from './FormButton.vue'
-import FormAlert from './FormAlert.vue'
+import FormInput from '../utilities/FormInput.vue'
+import FormButton from '../utilities/FormButton.vue'
+import FormAlert from '../utilities/FormAlert.vue'
 import Profilo from './profilo.vue'
 
 import {login, registrazione} from './../../js/controller.js'

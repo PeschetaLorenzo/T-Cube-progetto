@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { addNewSolve } from '../js/controller.js'
 
 let countdown
 
@@ -8,7 +9,9 @@ export const useTimerStore = defineStore('timer', {
     time: 0,
     startTime: 0,
     inspectionTime: 15,
-    interval: null
+    interval: null,
+    scramble: '',
+    falloIspezione: false
   }),
 
   actions: {
@@ -19,11 +22,13 @@ export const useTimerStore = defineStore('timer', {
     startInspection() {
       this.phase = 'inspection'
       this.inspectionTime = 15
+      this.falloIspezione = false
 
       countdown = setInterval(() => {
         this.inspectionTime--
         if (this.inspectionTime <= 0) {
           clearInterval(countdown)
+          this.falloIspezione = true;
           this.startTimer()
         }
       }, 1000)
@@ -36,14 +41,17 @@ export const useTimerStore = defineStore('timer', {
 
       this.interval = setInterval(() => {
         this.time = performance.now() - this.startTime
-      }, 10)
+      }, 1)
     },
 
     stopTimer() {
       if (this.interval) 
+      {
         clearInterval(this.interval)
-      
+        addNewSolve()
+      }
       this.phase = 'idle'
+      
     },
 
     reset() {

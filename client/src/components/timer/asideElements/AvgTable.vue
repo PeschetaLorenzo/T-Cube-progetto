@@ -1,4 +1,21 @@
-<script setup>
+<script>
+export default {
+    props: {
+        stats: []
+    },
+    data(){
+        
+    },
+    computed:{
+        statisticheTable(){
+            return [...(this.stats ?? [])]
+        }
+    },
+    methods:{
+
+        
+    },
+}
 
 </script>
 
@@ -12,42 +29,11 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <th>Single</th>
-                <td>{{19.244}}</td>
-                <td class="text-success">{{11.731}}</td>
+            <tr v-for="stat in statisticheTable">
+                <th>{{stat.descRecord}}</th>
+                <td>{{stat.current/1000}}</td>
+                <td class="text-success">{{stat.statBest/1000}}</td>
             </tr>
-            <tr>
-                <th>AVG of 3</th>
-                <td>{{1}}</td>
-                <td class="text-success">{{0.1}}</td>
-            </tr>
-            <tr>
-                <th>AVG of 5</th>
-                <td>{{1}}</td>
-                <td class="text-success">{{40.143}}</td>
-            </tr>
-            <tr>
-                <th>AVG of 12</th>
-                <td>{{1}}</td>
-                <td class="text-success">{{0.1}}</td>
-            </tr>
-            <tr>
-                <th>AVG of 100</th>
-                <td>{{1}}</td>
-                <td class="text-success">{{0.1}}</td>
-            </tr>
-             <tr>
-                <th>AVG of 1000 </th>
-                <td>{{1}}</td>
-                <td class="text-success">{{0.1}}</td>
-            </tr>
-            <tr>
-                <th>AVG of All ({{12344}})</th>
-                <td>{{1}}</td>
-                <td class="text-success">{{0.1}}</td>
-            </tr>
-
         </tbody>
     </table>
 </template>

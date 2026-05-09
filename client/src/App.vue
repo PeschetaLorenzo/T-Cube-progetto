@@ -1,12 +1,15 @@
 <script setup>
-import {ref} from 'vue'
-import { onMounted } from 'vue'
+import {ref, watch, onMounted, onBeforeUnmount, computed} from 'vue'
 
-import { getWpas, getBpas } from './js/controller'
+import { getWpas, getBpas, getTipiCubo, getUserSolves} from './js/controller'
+import { useTimerStore } from '@/stores/timer'
 
 import LogoMenu from './components/header/LogoMenu.vue'
 import scramble from './components/header/Scramble.vue'
 import btnScramble from './components/header/btnScramble.vue';
+
+import SelectVisual from './components/utilities/SelectVisual.vue'
+import BootstrapAlert from './components/utilities/BootstrapAlert.vue'
 
 import asideTable from './components/timer/asideTable.vue'
 import timer from './components/timer/timer.vue';
@@ -15,11 +18,34 @@ import login from './components/login/login.vue'
 import Cubo from './components/Cubo.vue'
 
 
+var tipiCubo = ref([])
+
+// Computed properties per la select
+const tipiCuboTexts = computed(() => tipiCubo.value.map(opt => opt.desctipo))
+const tipiCuboValues = computed(() => tipiCubo.value.map(opt => opt.idtipo))
+
+// Tipo di cubo selezionato - oggetto completo con tutti i dati
+const selectedTipoCubo = computed(() => {
+  sessionStorage.setItem('tipoCubo', JSON.stringify(tipiCubo.value[tipoCuboModel.value-1]))
+  getUserSolves()
+  return tipiCubo.value[tipoCuboModel.value-1]
+})
+
 const scrambleCmp = ref(null)
 const cuboCmp = ref(null)
 var page = ref('timer')
 var scrambleMoves = []
+var previousPhase = ref('idle')
+var tipoCuboModel = ref(1)
+const bpas = ref([])
+const wpas = ref([])
 
+const timerStore = useTimerStore();
+
+function updatePossibleAvgs() {
+  bpas.value = getBpas(false, true, true)
+  wpas.value = getWpas(false, true, true)
+}
 
 function  onBtnEvent(action) {
   const cmp = scrambleCmp.value
@@ -40,9 +66,12 @@ function  onBtnEvent(action) {
 
 function onPageChange(newPage)
 {
-  if(newPage == 'login' && page.value == 'login')
-    newPage = 'timer'
-  page.value = newPage
+  if(timerStore.phase == 'idle')
+  {
+    if(newPage == 'login' && page.value == 'login')
+      newPage = 'timer'
+    page.value = newPage
+  } 
 }
 
 function closeLogin(){
@@ -53,12 +82,49 @@ function newScramble(newScramble)
 {
   console.log(newScramble)
   scrambleMoves = newScramble
-  
-  // Apply the new scramble to the Cubo component
+  timerStore.scramble = scrambleMoves
+
   if (cuboCmp.value) {
     cuboCmp.value.applyNewScramble(newScramble)
   }
 }
+
+onMounted(async () => {
+  tipiCubo.value = await getTipiCubo()
+  console.log('Tipi di cubo caricati:', tipiCubo.value)
+  console.log('Tipo di cubo selezionato:', selectedTipoCubo.value)
+
+  updatePossibleAvgs()
+  window.addEventListener('solves-updated', updatePossibleAvgs)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('solves-updated', updatePossibleAvgs)
+})
+
+// Watch for timer phase changes - auto-generate scramble when timer stops
+watch(() => timerStore.phase, (newPhase, oldPhase) => {
+  if (oldPhase === 'running' && newPhase === 'idle' && scrambleCmp.value) {
+    // Timer just stopped, automatically generate new scramble
+    scrambleCmp.value.generateScramble()
+  }
+  previousPhase.value = newPhase
+})
+
+// When the cube is rendered after the first scramble was generated,
+// apply the latest scramble that App.vue already received.
+watch(cuboCmp, (cmp) => {
+  if (cmp && scrambleMoves.length > 0) {
+    cmp.applyNewScramble(scrambleMoves)
+  }
+}, { flush: 'post' })
+
+watch(tipoCuboModel, () => {
+  if (timerStore.phase === 'idle' && scrambleCmp.value) {
+    scrambleCmp.value.generateScramble()
+  }
+})
+
 
 </script>
 
@@ -69,7 +135,17 @@ function newScramble(newScramble)
       <LogoMenu :page="page" @pageChange="onPageChange"/>
     </div>
     <div  v-if="page == 'timer'">
-      <scramble ref="scrambleCmp" @newScramble="newScramble"></scramble>
+      <div class="row w-100 d-flex justify-content-center">
+        <SelectVisual
+          :labelText="'Seleziona la tipologia di cubo'"
+          :optionValues="tipiCuboValues"
+          :optionTexts="tipiCuboTexts"
+          :disabled="timerStore.phase != 'idle'"
+          v-model="tipoCuboModel"
+          class="w-50"
+        ></SelectVisual>
+        <scramble v-if="selectedTipoCubo?.scrambled" ref="scrambleCmp" @newScramble="newScramble"></scramble>
+      </div>
       <btnScramble @btnAction="onBtnEvent"></btnScramble>
     </div>
     <div  v-if="page != 'timer'">
@@ -83,7 +159,7 @@ function newScramble(newScramble)
 
     </aside>
     <section class="col-7">
-      <timer v-if="page == 'timer'" class="mr-3" :wpas="getWpas(false, true, true)" :bpas="getBpas(false, true, true)"></timer>
+      <timer v-if="page == 'timer'" class="mr-3" :wpas="wpas" :bpas="bpas"></timer>
       <div v-if="page == 'tutorial'" class="">tutorial</div>
       <div v-if="page == 'training'" class="">training</div>
       <login v-if="page == 'login'" class="" @closeLogin="closeLogin"></login>
@@ -92,7 +168,8 @@ function newScramble(newScramble)
     <div class="col-3"></div>
 
   </main>
-  <Cubo ref="cuboCmp" :autoPlayOnTurnsChange="false"></Cubo>
+  <Cubo v-if="page=='timer' && selectedTipoCubo?.rendered" ref="cuboCmp" :autoPlayOnTurnsChange="true"></Cubo>
+  <BootstrapAlert></BootstrapAlert>
   
 </template>
 
@@ -127,13 +204,20 @@ main{
   max-height: 80vh;
 }
 
+aside{
+  height: 100%;
+  max-height: 80%;
+  margin-bottom: 20px;
+}
+
+
 Cubo{
   position: absolute;
   z-index: 10;
   display: block;
   visibility: visible;
-  bottom: 0px;
-  right: 0px;
+  bottom: 5%;
+  right: 0%;
   height: 100px;
 }
 

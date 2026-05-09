@@ -341,7 +341,7 @@ const props = withDefaults(
     autoPlayOnTurnsChange: true,
     keyboardEnabled: false,
     showControls: true,
-    animationSpeed: 1
+    animationSpeed: 0.8
   }
 );
 
@@ -713,57 +713,6 @@ function toggleRotation(): void {
   }
 }
 
-function handleCubeMoves(e: KeyboardEvent): void {
-  if (queryElement('.cube-layer.turn')) return;
-
-  let moveToMake: Turn | '' = '';
-
-  switch (e.key.toLowerCase()) {
-    case 'u':
-      moveToMake = e.shiftKey ? 'u3' : 'u1';
-      break;
-    case 'f':
-      moveToMake = e.shiftKey ? 'f3' : 'f1';
-      break;
-    case 'r':
-      moveToMake = e.shiftKey ? 'r3' : 'r1';
-      break;
-    case 'l':
-      moveToMake = e.shiftKey ? 'l3' : 'l1';
-      break;
-    case 'b':
-      moveToMake = e.shiftKey ? 'b3' : 'b1';
-      break;
-    case 'd':
-      moveToMake = e.shiftKey ? 'd3' : 'd1';
-      break;
-    case 'm':
-      moveToMake = e.shiftKey ? 'm3' : 'm1';
-      break;
-    case 'e':
-      moveToMake = e.shiftKey ? 'e3' : 'e1';
-      break;
-    case 's':
-      moveToMake = e.shiftKey ? 's3' : 's1';
-      break;
-    case '2':
-      if (lastMoveKey && 'ufrlbdmes'.includes(lastMoveKey.toLowerCase())) {
-        moveToMake = `${lastMoveKey.toLowerCase() as Face}2` as Turn;
-      }
-      break;
-  }
-
-  if (moveToMake) {
-    if (isRotating) {
-      toggleRotation();
-    }
-
-    setTurns([...turnQueue.value, moveToMake], { emitUpdate: true });
-    move(moveToMake);
-    lastMoveKey = e.key;
-  }
-}
-
 function handleDragStart(e: MouseEvent | TouchEvent): void {
   isDragging = true;
 
@@ -814,57 +763,6 @@ function handleDragEnd(): void {
   isDragging = false;
 }
 
-function handleKeydown(e: KeyboardEvent): void {
-  if ('ufrlbdmes'.includes(e.key.toLowerCase())) {
-    handleCubeMoves(e);
-    return;
-  }
-
-  if (isRotating && !isKeyRotating) {
-    toggleRotation();
-  }
-
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-    e.preventDefault();
-  }
-
-  if (!isKeyRotating) {
-    isKeyRotating = true;
-
-    keyRotationInterval = window.setInterval(() => {
-      const cube = getCube();
-      if (!cube) return;
-
-      switch (e.key) {
-        case 'ArrowLeft':
-          cubeRotation.y -= rotationSpeed;
-          break;
-        case 'ArrowRight':
-          cubeRotation.y += rotationSpeed;
-          break;
-        case 'ArrowUp':
-          cubeRotation.x -= rotationSpeed;
-          break;
-        case 'ArrowDown':
-          cubeRotation.x += rotationSpeed;
-          break;
-      }
-
-      cube.style.transform = `rotateX(${cubeRotation.x}deg) rotateY(${cubeRotation.y}deg) rotateZ(${cubeRotation.z}deg)`;
-    }, 16);
-  }
-}
-
-function handleKeyup(e: KeyboardEvent): void {
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-    isKeyRotating = false;
-
-    if (keyRotationInterval !== null) {
-      clearInterval(keyRotationInterval);
-      keyRotationInterval = null;
-    }
-  }
-}
 
 function onSceneMouseDown(e: MouseEvent): void {
   if (e.button === 0) {
@@ -872,17 +770,11 @@ function onSceneMouseDown(e: MouseEvent): void {
   }
 }
 
-function onSpaceKeydown(event: KeyboardEvent): void {
-  if (event.code === 'Space') {
-    event.preventDefault();
-    toggleRotation();
-  }
-}
 
 function onAuxClick(): void {
   const scene = getScene();
   if (scene) {
-    scene.style.scale = '100%';
+    scene.style.scale = '80%';
   }
 }
 
@@ -978,12 +870,6 @@ onMounted(() => {
   document.addEventListener('touchmove', handleDragMove as EventListener, { passive: false });
   document.addEventListener('touchend', handleDragEnd);
 
-  if (props.keyboardEnabled) {
-    document.addEventListener('keydown', onSpaceKeydown);
-    document.addEventListener('keydown', handleKeydown);
-    document.addEventListener('keyup', handleKeyup);
-  }
-
   captureSolvedCubeState();
   nextMove();
 });
@@ -1006,9 +892,6 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', handleDragEnd);
   document.removeEventListener('touchmove', handleDragMove as EventListener);
   document.removeEventListener('touchend', handleDragEnd);
-  document.removeEventListener('keydown', onSpaceKeydown);
-  document.removeEventListener('keydown', handleKeydown);
-  document.removeEventListener('keyup', handleKeyup);
 
   if (keyRotationInterval !== null) {
     clearInterval(keyRotationInterval);
