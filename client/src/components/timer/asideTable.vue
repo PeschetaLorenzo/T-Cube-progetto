@@ -1,5 +1,5 @@
 <script setup>
-    import { getLastXTempi, getMonthData, getStatistiche } from '@/js/controller';
+    import { getLastXTempi, getStatistiche } from '@/js/controller';
 
     import AvgTable from './asideElements/AvgTable.vue';
     import graficoCalendario from './asideElements/grafici/graficoCalendario.vue';
@@ -41,7 +41,7 @@
 
 <template>
     <aside>
-        <AvgTable :stats="statistics"></AvgTable>
+        <AvgTable :stats="statistics" :tempi="tempi"></AvgTable>
         <SelectVisual 
             :labelText="`Seleziona il metodo di visualizzazione`"
             :optionValues="optionValues"
@@ -49,8 +49,8 @@
             v-model="selectedVisual"
         ></SelectVisual>
         <section>
-            <graficoTempi v-if="selectedVisual == 'Grafico'">Grafico</graficoTempi>
-            <graficoCalendario v-if="selectedVisual == 'Calendario'" :mese="getMonthData(2, 2026)">Calendario</graficoCalendario>
+            <graficoTempi v-if="selectedVisual == 'Grafico'" :tempi="tempi">Grafico</graficoTempi>
+            <graficoCalendario v-if="selectedVisual == 'Calendario'">Calendario</graficoCalendario>
             <tabellaTempi v-if="selectedVisual == 'Tabella'" :tempi="tempi">Tabella</tabellaTempi>
         </section>
     </aside>

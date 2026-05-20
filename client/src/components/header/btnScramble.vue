@@ -3,7 +3,10 @@ import { useTimerStore } from '@/stores/timer'
 
 export default {
     props: {
-
+        hasAutoScramble: {
+            type: Boolean,
+            default: true
+        }
     },
     data(){
         return{
@@ -18,9 +21,9 @@ export default {
 
 <template>
     <div>
-        <button class="btn m-1" :disabled="timer.phase != 'idle'" @click="$emit('btnAction', 'oldScramble')">Ripeti scramble</button>
-        <button class="btn m-1" :disabled="timer.phase != 'idle'" @click="$emit('btnAction', 'generate')">Nuovo scramble</button>
-        <button class="btn m-1" :disabled="timer.phase != 'idle'" >Riconosci scramble</button>
+        <button class="btn m-1" :disabled="timer.phase != 'idle' || !hasAutoScramble" @click="$emit('btnAction', 'oldScramble')">Ripeti scramble</button>
+        <button class="btn m-1" :disabled="timer.phase != 'idle' || !hasAutoScramble" @click="$emit('btnAction', 'generate')">Nuovo scramble</button>
+        <button class="btn m-1" :disabled="timer.phase != 'idle'" @click="$emit('btnAction', 'insert')">Inserisci scramble</button>
     </div>
 </template>
 

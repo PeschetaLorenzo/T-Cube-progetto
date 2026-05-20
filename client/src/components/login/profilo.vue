@@ -14,10 +14,17 @@ const editingField = ref(null)
 const originalValues = ref({})
 const isLoading = ref(false)
 
+const profileFields = {
+  username,
+  email,
+  password
+}
+
 onMounted(() => {
   loadUserData()
 })
 
+// Carica i dati utente salvati dopo login/registrazione.
 const loadUserData = () => {
   const utente = JSON.parse(sessionStorage.getItem('utente'))
   if (utente) {
@@ -27,19 +34,20 @@ const loadUserData = () => {
   }
 }
 
+// Gestisce modifica, annullamento e salvataggio dei campi profilo.
 const enableEdit = (field) => {
-  originalValues.value[field] = eval(field).value
+  originalValues.value[field] = profileFields[field].value
   editingField.value = field
 }
 
 const cancelEdit = (field) => {
-  eval(field).value = originalValues.value[field]
+  profileFields[field].value = originalValues.value[field]
   editingField.value = null
 }
 
 const saveEdit = async (field, newValue) => {
   isLoading.value = true
-  console.log(newValue)
+
   try {
     await changeAccount(field, newValue)
   } catch (error) {
@@ -52,9 +60,16 @@ const saveEdit = async (field, newValue) => {
 }
 
 const handleLogout = () => {
-  console.log(sessionStorage.getItem('utente'))
-  sessionStorage.removeItem('utente')
-  console.log(sessionStorage.getItem('utente'))
+  const tipoCubo = sessionStorage.getItem('tipoCubo')
+
+  sessionStorage.clear()
+
+  if (tipoCubo) {
+    sessionStorage.setItem('tipoCubo', tipoCubo)
+  }
+
+  window.dispatchEvent(new Event('solves-updated'))
+  window.dispatchEvent(new Event('stats-updated'))
   emit('logout')
 }
 </script>

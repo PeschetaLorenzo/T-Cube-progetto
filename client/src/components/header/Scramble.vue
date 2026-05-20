@@ -31,6 +31,9 @@ export default {
             this.scramble = this.prevScramble[this.prevScramble.length - 1]
             this.prevScramble.pop()
             this.$emit('newScramble', this.scramble)            
+        },
+        setScramble(scramble){
+            this.scramble = scramble
         }
     },
     created() {

@@ -59,7 +59,7 @@ export function displayScramble(scramble)
     return visScramble
 }
 
-function parseScramble(scrambleString){
+export function parseScramble(scrambleString){
   scrambleString = scrambleString.replaceAll("\'", '3')
   scrambleString = scrambleString.toLocaleLowerCase()
 

@@ -1,4 +1,5 @@
 <script>
+import { openSolveInfoModal } from '@/components/utilities/modal/solveInfoModal'
 
 export default {
     props: {
@@ -13,7 +14,27 @@ export default {
         }
     },
     methods:{
+        openSolveInfo(idORd){
+            openSolveInfoModal(idORd)
+        },
+        isDnf(solve) {
+            return Boolean(solve?.isdnf || solve?.isDnf || solve?.isDNF || solve?.penalties?.dnf || solve?.penalties?.DNF)
+        },
+        formatMs(time) {
+            if (time == null || time === '') {
+                return 'DNF'
+            }
 
+            const numericTime = Number(time)
+            return Number.isFinite(numericTime) ? (numericTime / 1000).toFixed(3) : String(time)
+        },
+        formatSolveTime(solve) {
+            const formattedTime = this.formatMs(solve?.time)
+            return this.isDnf(solve) ? `DNF(${formattedTime})` : formattedTime
+        },
+        formatAverage(value) {
+            return value == null ? 'DNF' : this.formatMs(value)
+        }
         
     },
 }
@@ -30,10 +51,10 @@ export default {
             </tr>
         </thead>
         <tbody>
-            <tr v-for="tempo in tempiTabella" :key="tempo.nRecord">
+            <tr v-for="tempo in tempiTabella" :key="tempo.nRecord" @click="openSolveInfo(tempo.nRecord)">
                 <td>{{tempo.nRecord}}</td>
-                <td :class="{ best: tempo.isBestSingle}">{{tempo.time/1000}}</td>
-                <td :class="{ best: tempo.isBestAvg5}">{{tempo.avg5/1000}}</td>
+                <td :class="{ best: tempo.isBestSingle}">{{ formatSolveTime(tempo) }}</td>
+                <td :class="{ best: tempo.isBestAvg5}">{{ formatAverage(tempo.avg5) }}</td>
                 <td class="progression">{{tempo.progression == 1 ? '▼' : tempo.progression == -1 ? '▲' : tempo.progression == 0 ? '=' : ' '}}</td>
             </tr>
         </tbody>
@@ -41,9 +62,6 @@ export default {
 
 </template>
 <style scoped>
-    template{
-    }
-
     table{
         width: max-content;
         text-align: center;

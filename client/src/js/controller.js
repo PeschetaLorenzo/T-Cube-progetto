@@ -1,376 +1,350 @@
-import { showAlert } from '@/components/utilities/alert'
+import { showAlert } from '@/components/utilities/modal/alert'
 import { useTimerStore } from '@/stores/timer'
+import { getRequest, postRequest } from './apiClient'
 
-const URL_SERVER = 'http://localhost:3000'
+const DEFAULT_ID_TIPO = 1
+const RECORD_COUNTS = [3, 5, 12, 100, 1000]
 
-export async function getTipiCubo() {
-    return getRequest('/getTipiCubo').then((res => {
-        console.log(res)
-        if(res.status == 200)
-        {
-            console.log(res)
-            return res.tipiCubo
-        }
-    }))
-}
-
-export async function getAvgs(avg3=false, avg5=false, avg12=false, avg100=false, avg1000=false, avgAll=false)
-{
-    let avgs = []
-
-    if(avg3)
-        avgs.push(3)
-
-    if(avg5)
-        avgs.push(5.001)
-    
-    if(avg12)
-        avgs.push(12)
-    
-    if(avg100)
-        avgs.push(100)
-    
-    if(avg1000)
-        avgs.push(1000)
-    
-    if(avgAll)
-        avgs.push(0)
-
-     
-    return avgs 
-}
-
-export function getBpas(bpa3=false, bpa5=false, bpa12=false, bpa100=false, bpa1000=false, bpaAll=false)
-{
-    let bpas = []
-
-    console.log(JSON.parse(sessionStorage.getItem('solves')))
-
-    if(bpa3)
-        bpas.push(calcolaBpa(3))
-    if(bpa5)
-        bpas.push(calcolaBpa(5))
-    if(bpa12)
-        bpas.push(calcolaBpa(12))
-    if(bpa100)
-        bpas.push(calcolaBpa(100))
-    if(bpa1000)
-        bpas.push(calcolaBpa(1000))
-    if(bpaAll)
-        bpas.push(calcolaBpa(JSON.parse(sessionStorage.getItem('solves') ?? '[]').length))
-    
-    return bpas 
-}
-
-export function getWpas(wpa3=false, wpa5=false, wpa12=false, wpa100=false, wpa1000=false, wpaAll=false)
-{
-    let wpas = []
-
-    if(wpa3)
-        wpas.push(calcolaWpa(3))
-
-    if(wpa5)
-        wpas.push(calcolaWpa(5))
-    
-    if(wpa12)
-        wpas.push(calcolaWpa(12))
-    
-    if(wpa100)
-        wpas.push(calcolaWpa(100))
-    
-    if(wpa1000)
-        wpas.push(calcolaWpa(1000))
-    
-    if(wpaAll)
-        wpas.push(calcolaWpa(JSON.parse(sessionStorage.getItem('solves') ?? '[]').length))
-
-     
-    return wpas 
-}
-
-export function getLastXTempi(){
-    let tempi
-
+// Legge JSON da sessionStorage senza far fallire la UI se il dato e assente o corrotto.
+function readStorage(key, fallback = null) {
     try {
-        tempi = JSON.parse(sessionStorage.getItem('solves') ?? '[]')
+        return JSON.parse(sessionStorage.getItem(key) ?? JSON.stringify(fallback))
     } catch(err) {
-        tempi = []
+        return fallback
+    }
+}
+
+function writeStorage(key, value, eventName = null) {
+    sessionStorage.setItem(key, JSON.stringify(value))
+
+    if (eventName) {
+        window.dispatchEvent(new Event(eventName))
+    }
+}
+
+export function getUtente() {
+    return readStorage('utente')
+}
+
+function setUtente(utente) {
+    writeStorage('utente', utente)
+}
+
+function getTipoCuboId() {
+    return readStorage('tipoCubo', {})?.idtipo ?? DEFAULT_ID_TIPO
+}
+
+function setSolvesStorage(solves) {
+    writeStorage('solves', solves ?? [], 'solves-updated')
+}
+
+function setStatsStorage(stats) {
+    writeStorage('statistiche', stats ?? [], 'stats-updated')
+}
+
+// Converte i flag avg/bpa/wpa nella lista di record richiesti.
+function getSelectedCounts(flags, includeAll = false) {
+    const counts = RECORD_COUNTS.filter((_, index) => flags[index])
+
+    if (includeAll) {
+        counts.push(getLastXTempi().length)
     }
 
-    console.log(tempi)
-    return tempi
+    return counts
 }
 
-export function getMonthData(MM, YYYY){
-    let mese = []
+function averageMs(tempi) {
+    if (tempi.length === 0) {
+        return null
+    }
 
-    let dataIn = new Date(year=YYYY, monthIndex=MM)
-    console.log(new Date(year=YYYY, monthIndex=MM))
-
-    for(let i = 0; i < 30; i++)
-        mese.push({
-            tempi: getLastXTempi(Math.round(Math.random()*100)), 
-            data: dataIn})
-
-    return mese
-
+    const somma = tempi.reduce((acc, tempo) => acc + tempo, 0)
+    return somma / tempi.length
 }
 
-export function getStatistiche(){
+function formatMsAsSeconds(tempo) {
+    return tempo == null ? null : (tempo / 1000).toFixed(3)
+}
+
+function getSolveTimes() {
+    return getLastXTempi()
+        .map(solve => Number(solve.time))
+        .filter(tempo => !Number.isNaN(tempo))
+}
+
+// Calcola BPA/WPA: il prossimo tempo estremo viene escluso, poi si toglie l'altro estremo.
+function calcolaPossibleAverage(nsolve, tipo) {
+    if (!nsolve || nsolve <= 1) {
+        return null
+    }
+
+    const requiredSolves = nsolve - 1
+    const tempi = getSolveTimes().slice(-requiredSolves)
+
+    if (tempi.length < requiredSolves) {
+        return null
+    }
+
+    const tempiOrdinati = [...tempi].sort((a, b) => a - b)
+
+    if (tipo === 'bpa') {
+        tempiOrdinati.pop()
+    } else {
+        tempiOrdinati.shift()
+    }
+
+    return formatMsAsSeconds(averageMs(tempiOrdinati))
+}
+
+// Recupera dal backend i tipi di cubo disponibili.
+export async function getTipiCubo() {
+    const res = await getRequest('/getTipiCubo')
+    return res.status === 200 ? res.tipiCubo : []
+}
+
+// Restituisce le average selezionate. Mantiene la firma a flag usata dai componenti.
+export async function getAvgs(avg3=false, avg5=false, avg12=false, avg100=false, avg1000=false, avgAll=false) {
+    return getSelectedCounts([avg3, avg5, avg12, avg100, avg1000], avgAll)
+}
+
+// Best possible average: media ottenibile se la prossima solve e il nuovo best escluso.
+export function getBpas(bpa3=false, bpa5=false, bpa12=false, bpa100=false, bpa1000=false, bpaAll=false) {
+    return getSelectedCounts([bpa3, bpa5, bpa12, bpa100, bpa1000], bpaAll)
+        .map(nsolve => calcolaPossibleAverage(nsolve, 'bpa'))
+}
+
+// Worst possible average: media ottenibile se la prossima solve e il nuovo worst escluso.
+export function getWpas(wpa3=false, wpa5=false, wpa12=false, wpa100=false, wpa1000=false, wpaAll=false) {
+    return getSelectedCounts([wpa3, wpa5, wpa12, wpa100, wpa1000], wpaAll)
+        .map(nsolve => calcolaPossibleAverage(nsolve, 'wpa'))
+}
+
+// Legge le solve locali, eventualmente limitandole alle ultime N.
+export function getLastXTempi(limit = null) {
+    const solves = readStorage('solves', [])
+    return limit ? solves.slice(-limit) : solves
+}
+
+export async function getCalendarMonth(year, month) {
+    const utente = getUtente()
+
+    if (!utente) {
+        return {
+            year,
+            month,
+            startsOn: new Date(year, month - 1, 1).getDay(),
+            days: []
+        }
+    }
+
+    const res = await postRequest('/getCalendarMonth', {
+        idUt: utente.id,
+        idTipo: getTipoCuboId(),
+        year,
+        month
+    })
+
+    return res.calendar
+}
+
+export function getStatistiche() {
     return getUserStatistics()
 }
 
-export function login(email, pwd){    
-    postRequest('/login', {mail: email, pwd: pwd}).then(res => {
-        console.log(res)
-        if(res.status == 200)
-        {
-            let utente = {id: res.user.id, username: res.user.username, mail: email}
-            sessionStorage.setItem("utente", JSON.stringify(utente)); 
-            console.log(JSON.parse(sessionStorage.getItem('utente')))
+// Login utente e refresh dei dati dipendenti dall'account.
+export async function login(email, pwd) {
+    const res = await postRequest('/login', {mail: email, pwd})
 
-            getUserSolves()
-            getStatistiche()
-        }
-    })
-}
-
-export function registrazione(username, email, pwd){
-    postRequest('/registrazione', {username: username, mail: email, pwd: pwd}).then(res => {
-        console.log(res)
-        if(res.status == 200)
-        {
-            let utente = {id: res.user.id, username: res.user.username, mail: email}
-            sessionStorage.setItem("utente", JSON.stringify(utente)); 
-            console.log(JSON.parse(sessionStorage.getItem('utente')))
-        }
-    })
-}
-
-export function changeAccount(campo, valore)
-{
-    console.log(JSON.parse(sessionStorage.getItem('utente')))
-    let newValues = {
-        'username': JSON.parse(sessionStorage.getItem('utente')).username,
-        'mail': JSON.parse(sessionStorage.getItem('utente')).mail,
+    if (res.status === 200) {
+        setUtente({id: res.user.id, username: res.user.username, mail: email})
+        await Promise.all([getUserSolves(), getStatistiche()])
     }
 
-    switch(campo)
-    {
+    return res
+}
+
+// Registrazione utente e salvataggio della sessione locale.
+export async function registrazione(username, email, pwd) {
+    const res = await postRequest('/registrazione', {username, mail: email, pwd})
+
+    if (res.status === 200) {
+        setUtente({id: res.user.id, username: res.user.username, mail: email})
+        await Promise.all([getUserSolves(), getStatistiche()])
+    }
+
+    return res
+}
+
+// Aggiorna username, email o password dell'account corrente.
+export async function changeAccount(campo, valore) {
+    const utente = getUtente()
+
+    if (!utente) {
+        throw new Error('Utente non loggato')
+    }
+
+    const newValues = {
+        username: utente.username,
+        mail: utente.mail
+    }
+
+    switch(campo) {
         case 'username':
-            newValues['username'] = valore
-            break;
+            newValues.username = valore
+            break
+        case 'email':
         case 'mail':
-            newValues['mail'] = valore
-            break;
+            newValues.mail = valore
+            break
         case 'password':
-            newValues['pwd'] = valore
-            break;
-        
+            newValues.pwd = valore
+            break
     }
-    console.log({id: JSON.parse(sessionStorage.getItem('utente')).id, newValues: newValues})
 
-    return postRequest('/changeAccount', {id: JSON.parse(sessionStorage.getItem('utente')).id, newValues: newValues}).then(res => {
-        console.log(res)
-        if(res.status == 200)
-        {
-            let utente = {id: res.user.id, username: res.user.username, mail: res.user.mail}
-            sessionStorage.setItem("utente", JSON.stringify(utente)); 
-            console.log(JSON.parse(sessionStorage.getItem('utente')))
-        }
-        return res
-    })
+    const res = await postRequest('/changeAccount', {id: utente.id, newValues})
+
+    if (res.status === 200) {
+        setUtente({id: res.user.id, username: res.user.username, mail: res.user.mail})
+    }
+
+    return res
 }
 
-
-export function addNewSolve(){
+// Salva una nuova solve e ricarica solve/statistiche dal backend.
+export async function addNewSolve() {
     const timer = useTimerStore()
+    const utente = getUtente()
+    const tipoCubo = readStorage('tipoCubo', {})
 
-    if(sessionStorage.getItem('utente'))
-    {
-        let idTipo
-
-        try{
-            idTipo = JSON.parse(sessionStorage.getItem('tipoCubo'))?.idtipo ?? 1
-        }
-        catch(err)
-        {
-            idTipo = 1
-        }
-
-        let body = {
-            idUt: JSON.parse(sessionStorage.getItem('utente')).id,
-            idTipo: idTipo,
-            tempo: timer.time.toFixed(),
-            scramble: timer.scramble.toString().replaceAll(',', ' '),
-            falloIspezione: timer.falloIspezione,
-            falloMossa: false
-        }
-        console.log(body)
-
-        return postRequest("/addSolve", body).then(res => {
-            console.log(res)
-            return Promise.all([getUserSolves(), getStatistiche()]).then(() => res)
-        })
-    }
-    else
+    if (!utente) {
         showAlert('Effettua il login per salvare la soluzione', 'danger')
-    
+        return null
+    }
 
+    const scramble = !tipoCubo?.scrambled && timer.scrambleSource !== 'manual'
+        ? ''
+        : timer.scramble.toString().replaceAll(',', ' ')
+
+    const body = {
+        idUt: utente.id,
+        idTipo: getTipoCuboId(),
+        tempo: timer.time.toFixed(),
+        scramble,
+        falloIspezione: timer.falloIspezione,
+        falloMossa: false
+    }
+
+    const res = await postRequest('/addSolve', body)
+    await Promise.all([getUserSolves(), getStatistiche()])
+    writeStorage('lastSolve', res.solve.ordine)
+    return res
 }
 
-export function getUserSolves()
-{
-    if(!sessionStorage.getItem('utente')) {
+// Recupera le solve dell'utente e aggiorna sessionStorage/eventi UI.
+export async function getUserSolves() {
+    const utente = getUtente()
+
+    if (!utente) {
         setSolvesStorage([])
-        return Promise.resolve([])
+        return []
     }
 
-    const idUt = JSON.parse(sessionStorage.getItem('utente')).id
-    let idTipo
+    const res = await postRequest('/getSolves', {
+        idUt: utente.id,
+        idTipo: getTipoCuboId()
+    })
 
-    try{
-        idTipo = JSON.parse(sessionStorage.getItem('tipoCubo'))?.idtipo ?? 1
+    setSolvesStorage(res.solves)
+    return res.solves
+}
+
+// Recupera tutti i dettagli di una solve specifica dato il suo ordine.
+export async function getFullSolveData(ordine) {
+    const utente = getUtente()
+
+    if (!utente) {
+        throw new Error('Utente non loggato')
     }
-    catch(err)
-    {
-        idTipo = 1
-    }
-    
-    return postRequest('/getSolves', {idUt: idUt, idTipo: idTipo}).then(res => {
-        console.log(res)
-        setSolvesStorage(res.solves)
-        return res.solves
+
+    return await postRequest('/getFullSolveData', {
+        idUt: utente.id,
+        idTipo: getTipoCuboId(),
+        ordine
     })
 }
 
-function getUserStatistics(){
-    if(!sessionStorage.getItem('utente')) {
-        sessionStorage.setItem('solves', JSON.stringify([]))
-        window.dispatchEvent(new Event('solves-updated'))
-        return Promise.resolve([])
+// Recupera current/best record dell'utente e aggiorna la tabella statistiche.
+async function getUserStatistics() {
+    const utente = getUtente()
+
+    if (!utente) {
+        setStatsStorage([])
+        return []
     }
 
-    const idUt = JSON.parse(sessionStorage.getItem('utente')).id
-    let idTipo
+    const res = await postRequest('/getStats', {
+        idUt: utente.id,
+        idTipo: getTipoCuboId()
+    })
 
-    try{
-        idTipo = JSON.parse(sessionStorage.getItem('tipoCubo'))?.idtipo ?? 1
-    }
-    catch(err)
-    {
-        idTipo = 1
-    }
-    
-    return postRequest('/getStats', {idUt: idUt, idTipo: idTipo}).then(res => {
-        console.log(res)
-        sessionStorage.setItem('statistiche', JSON.stringify(res.stats))
-        window.dispatchEvent(new Event('stats-updated'))
-        return res.stats
-    })}
-
-/*
-    getRequest("/api/test-db", {}).then(res => console.log(res))
-    postRequest("/api/test-db", {}).then(res => console.log(res))
-*/
-
-
-function getRequest(service){
-    return fetch(URL_SERVER+service)
-        .then(res => res.json())
-}
-
-function postRequest(service, body){
-     return fetch(`${URL_SERVER}${service}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body)
-      }).then(res => res.json());
-}
-
-function setSolvesStorage(solves){
-    sessionStorage.setItem('solves', JSON.stringify(solves ?? []))
-    window.dispatchEvent(new Event('solves-updated'))
+    setStatsStorage(res.stats)
+    return res.stats
 }
 
 
-function calcolaBpa(nsolve){
-    if (!nsolve || nsolve <= 1)
-        return null
+export async function changeSolve(campo, valore) {
+    const utente = getUtente()
 
-    let solves
-
-    try {
-        solves = JSON.parse(sessionStorage.getItem('solves') ?? '[]')
-    } catch(err) {
-        solves = []
+    if (!utente) {
+        setStatsStorage([])
+        return []
     }
+    console.log(readStorage('lastSolve'))
+    const res = await postRequest('/changeSolve', {
+        idUt: utente.id,
+        idTipo: getTipoCuboId(),
+        ordine: getLastXTempi(1)[0].nRecord ,
+        campo, 
+        valore
+    })
 
-    // La prossima media avra il nuovo tempo migliore escluso:
-    // quindi servono solo gli ultimi nsolve - 1 tempi gia salvati.
-    if (solves.length < nsolve - 1)
-        return null
-
-    let tempi = solves
-        .slice(-(nsolve - 1))
-        .map(solve => Number(solve.time))
-        .filter(tempo => !Number.isNaN(tempo))
-
-    if (tempi.length < nsolve - 1)
-        return null
-
-    tempi.sort((a, b) => a - b)
-
-    // Il nuovo best sarebbe il tempo piu basso ed esce dalla media;
-    // tra i tempi rimasti va escluso il worst.
-    tempi.pop()
-
-    if (tempi.length === 0)
-        return null
-
-    const somma = tempi.reduce((acc, tempo) => acc + tempo, 0)
-    const media = somma / tempi.length
-
-    return (media / 1000).toFixed(3)
+    showAlert("Solve aggiornata con successo", 'success')
+    await getUserSolves()
+    updateTimerStore()
+    return res
 }
 
-function calcolaWpa(nsolve){
-    if (!nsolve || nsolve <= 1)
-        return null
+export async function deleteSolve() {
+    const utente = getUtente()
 
-    let solves
-
-    try {
-        solves = JSON.parse(sessionStorage.getItem('solves') ?? '[]')
-    } catch(err) {
-        solves = []
+    if (!utente) {
+        setStatsStorage([])
+        return []
     }
+    console.log(getLastXTempi(1)[0].nRecord)
+    const res = await postRequest('/deleteSolve', {
+        idUt: utente.id,
+        idTipo: getTipoCuboId(),
+        ordine: getLastXTempi(1)[0].nRecord
+    })
 
-    // La prossima media avra il nuovo tempo peggiore escluso:
-    // quindi servono solo gli ultimi nsolve - 1 tempi gia salvati.
-    if (solves.length < nsolve - 1)
-        return null
+    showAlert("Solve eliminata con successo", 'success')
+    await getUserSolves()
+    updateTimerStore()
 
-    let tempi = solves
-        .slice(-(nsolve - 1))
-        .map(solve => Number(solve.time))
-        .filter(tempo => !Number.isNaN(tempo))
+    return res
+}
 
-    if (tempi.length < nsolve - 1)
-        return null
 
-    tempi.sort((a, b) => a - b)
-
-    // Il nuovo worst sarebbe il tempo piu alto ed esce dalla media;
-    // tra i tempi rimasti va escluso il best.
-    tempi.shift()
-
-    if (tempi.length === 0)
-        return null
-
-    const somma = tempi.reduce((acc, tempo) => acc + tempo, 0)
-    const media = somma / tempi.length
-
-    return (media / 1000).toFixed(3)
+function updateTimerStore(){
+    const timer = useTimerStore()
+    const lastSolve = getLastXTempi(1)[0]
+    console.log(lastSolve)
+    timer.time = lastSolve.time
+    timer.scramble = lastSolve.scramble
+    timer.scrambleSource = 'saved'
+    timer.falloIspezione = lastSolve.falloIspezione
+    timer.falloMossa = lastSolve.falloMossa
+    timer.isDNF = lastSolve.isdnf
+    timer.ordine = lastSolve.nRecord
 }

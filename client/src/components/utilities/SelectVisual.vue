@@ -13,7 +13,7 @@
             required: true
         },
         modelValue: {
-            type: String,
+            type: [String, Number],
             required: true
         },
         disabled: {
@@ -23,12 +23,16 @@
     })
 
     const emit = defineEmits(['update:modelValue'])
+
+    function onChange(event) {
+        emit('update:modelValue', event.target.value)
+    }
 </script>
 
 <template>
     <header>
         <p>{{ labelText }}</p>        
-        <select :disabled="disabled" :value="modelValue" @input="emit('update:modelValue', $event.target.value)">
+        <select :disabled="disabled" :value="modelValue" @change="onChange">
             <option v-for="(text, index) in optionTexts" :key="index" :value="optionValues[index]">
                 {{ text }}
             </option>

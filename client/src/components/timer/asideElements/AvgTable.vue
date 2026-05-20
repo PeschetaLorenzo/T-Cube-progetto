@@ -1,7 +1,8 @@
 <script>
 export default {
     props: {
-        stats: []
+        stats: [],
+        tempi: []
     },
     data(){
         
@@ -9,11 +10,36 @@ export default {
     computed:{
         statisticheTable(){
             return [...(this.stats ?? [])]
+        },
+        avgAllCurrent() {
+            const validTimes = (this.tempi ?? [])
+                .filter(solve => !this.isDnf(solve))
+                .map(solve => Number(solve?.time))
+                .filter(time => Number.isFinite(time))
+
+            if (validTimes.length === 0) {
+                return null
+            }
+
+            return validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length
         }
     },
     methods:{
+        isDnf(solve) {
+            return Boolean(solve?.isdnf || solve?.isDnf || solve?.isDNF || solve?.penalties?.dnf || solve?.penalties?.DNF)
+        },
+        formatStat(value, isDnf = false, isAvailable = true) {
+            if (!isAvailable) {
+                return '-'
+            }
 
-        
+            if (isDnf) {
+                return 'DNF'
+            }
+
+            const numericValue = Number(value)
+            return value != null && Number.isFinite(numericValue) ? (numericValue / 1000).toFixed(3) : '-'
+        }
     },
 }
 
@@ -29,11 +55,19 @@ export default {
             </tr>
         </thead>
         <tbody>
+            <tr v-if="statisticheTable.length === 0">
+                <td colspan="3">Nessuna statistica disponibile</td>
+            </tr>
             <tr v-for="stat in statisticheTable">
                 <th>{{stat.descRecord}}</th>
-                <td>{{stat.current/1000}}</td>
-                <td class="text-success">{{stat.statBest/1000}}</td>
+                <td>{{ formatStat(stat.current, stat.currentIsDnf, stat.currentAvailable) }}</td>
+                <td class="best">{{ formatStat(stat.statBest, stat.statBestIsDnf, stat.statBestAvailable) }}</td>
             </tr>
+            <tr>
+                <th>AvgAll ({{ tempi.length }})</th>
+                <td >{{ formatStat(avgAllCurrent) }}</td>
+            </tr>
+            <small>(solo tempi validi per il calcolo)</small>
         </tbody>
     </table>
 </template>
@@ -62,6 +96,10 @@ export default {
         font-weight: bold;
         margin-right: 10px;
         padding: 5px;
+    }
+
+    .best{
+        color: var(--vueGreen);
     }
 
 

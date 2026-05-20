@@ -29,6 +29,8 @@
  *   client.release();
  * }
  */
+import { calculateRecordValue } from "./recordStats.js";
+
 export async function checkRecords({ client, idUt, idTipo, solve }) {
     if (!client || !idUt || !idTipo || !solve) {
         throw new Error('Parametri mancanti per checkRecords');
@@ -59,12 +61,16 @@ export async function checkRecords({ client, idUt, idTipo, solve }) {
 
         if (tipoRecord.nsolve === 1) {
             // Single: il record candidato e il tempo della solve corrente.
-            valoreRecord = tempoSolve;
+            valoreRecord = calculateRecordValue([solve], 1);
         } else {
             // Average: recuperiamo le ultime N solve dell'utente per questo cubo.
             const solvesStatsResult = await client.query(
                 `
-                SELECT tempo
+                SELECT
+                    tempo,
+                    falloispezione,
+                    fallomossa,
+                    isdnf
                 FROM solves
                 WHERE idut = $1
                   AND idtipo = $2
@@ -80,19 +86,11 @@ export async function checkRecords({ client, idUt, idTipo, solve }) {
                 continue;
             }
 
-            // Media stile WCA: per ao5/ao12/... togliamo best e worst.
-            const tempi = solvesStats
-                .map(s => s.tempo)
-                .sort((a, b) => a - b);
+            valoreRecord = calculateRecordValue(solvesStats, tipoRecord.nsolve);
+        }
 
-            if (tipoRecord.nsolve !== 3) {
-                tempi.shift();
-                tempi.pop();
-            }
-
-            const somma = tempi.reduce((acc, val) => acc + val, 0);
-
-            valoreRecord = Math.round(somma / tempi.length);
+        if (!Number.isFinite(valoreRecord)) {
+            continue;
         }
 
         // Cerchiamo il record attuale dell'utente per il tipo record corrente.

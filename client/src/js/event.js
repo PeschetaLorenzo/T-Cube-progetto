@@ -4,26 +4,30 @@ let holdTimer = null
 let longPress = false
 const DELAY = 500
 
-export function setupEvents() {
+export function setupEvents(canUseTimer = () => true) {
   const timer = useTimerStore()
 
-  document.addEventListener('keydown', (e) => {
+  const onKeydown = (e) => {
     if (e.code !== 'Space') return
     if (e.repeat) return
+    if (!canUseTimer()) return
 
     longPress = false
 
     holdTimer = setTimeout(() => {
+      if (!canUseTimer()) return
+
       longPress = true
       if(timer.phase === 'inspection')
         timer.setReady()
       //else 
         //timer.startInspection()
     }, DELAY)
-  })
+  }
 
-  document.addEventListener('keyup', (e) => {
+  const onKeyup = (e) => {
     if (e.code !== 'Space') return
+    if (!canUseTimer()) return
 
     clearTimeout(holdTimer)
 
@@ -43,5 +47,14 @@ export function setupEvents() {
         timer.startTimer()
       }
     }
-  })
+  }
+
+  document.addEventListener('keydown', onKeydown)
+  document.addEventListener('keyup', onKeyup)
+
+  return () => {
+    document.removeEventListener('keydown', onKeydown)
+    document.removeEventListener('keyup', onKeyup)
+    clearTimeout(holdTimer)
+  }
 }

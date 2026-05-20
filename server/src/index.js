@@ -2,6 +2,7 @@ import express from "express";
 import "./config/config.js";
 import pool from "./db/pool.js";
 import { checkRecords } from "./services/checkRecords.js";
+import { calculateRecordValue, getSolveTimeWithPenalties, isSolveDnf } from "./services/recordStats.js";
 
 import bcrypt from "bcrypt";
 
@@ -9,6 +10,113 @@ import bcrypt from "bcrypt";
 const app = express();
 app.use(express.json());
 
+function formatRecordValue(value) {
+    return Number.isFinite(value) ? value : null;
+}
+
+function formatSolveTime(solve) {
+    return isSolveDnf(solve) ? solve.tempo : getSolveTimeWithPenalties(solve);
+}
+
+function getDateKey(value) {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+        return value.slice(0, 10);
+    }
+
+    return new Date(value).toISOString().slice(0, 10);
+}
+
+function getBestAverageForSolves(solves, size) {
+    if (!Array.isArray(solves) || solves.length < size) {
+        return null;
+    }
+
+    let best = null;
+
+    for (let start = 0; start <= solves.length - size; start++) {
+        const value = calculateRecordValue(solves.slice(start, start + size), size);
+
+        if (Number.isFinite(value) && (best === null || value < best)) {
+            best = value;
+        }
+    }
+
+    return best;
+}
+
+function buildCalendarMonthPayload({ year, month, solves, records }) {
+    const firstDay = new Date(Date.UTC(year, month - 1, 1));
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const daysByDate = new Map();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+        daysByDate.set(date, {
+            date,
+            solveCount: 0,
+            average: null,
+            bestTime: null,
+            bestAvg5: null,
+            bestAvg12: null,
+            records: []
+        });
+    }
+
+    for (const solve of solves) {
+        const date = getDateKey(solve.data ?? solve.dataora);
+        const day = daysByDate.get(date);
+
+        if (!day) {
+            continue;
+        }
+
+        if (!day.solves) {
+            day.solves = [];
+        }
+
+        day.solves.push(solve);
+    }
+
+    for (const record of records) {
+        const date = getDateKey(record.data ?? record.dataora);
+        const day = daysByDate.get(date);
+
+        if (!day) {
+            continue;
+        }
+
+        day.records.push({
+            idRecordEntry: record.idrecordentry,
+            idTipoRecord: record.idtiporecord,
+            description: record.descrecord,
+            time: formatRecordValue(Number(record.tempo)),
+            solveOrder: record.ordine
+        });
+    }
+
+    for (const day of daysByDate.values()) {
+        const daySolves = day.solves ?? [];
+        const validTimes = daySolves
+            .map(solve => getSolveTimeWithPenalties(solve))
+            .filter(Number.isFinite);
+
+        day.solveCount = daySolves.length;
+        day.average = validTimes.length === 0
+            ? null
+            : Math.round(validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length);
+        day.bestTime = validTimes.length === 0 ? null : Math.min(...validTimes);
+        day.bestAvg5 = getBestAverageForSolves(daySolves, 5);
+        day.bestAvg12 = getBestAverageForSolves(daySolves, 12);
+        delete day.solves;
+    }
+
+    return {
+        year,
+        month,
+        startsOn: firstDay.getUTCDay(),
+        days: [...daysByDate.values()]
+    };
+}
 
 app.listen(3000, () => {
   console.log("Server avviato su porta 3000");
@@ -62,8 +170,6 @@ app.post("/login", async (req, res) => {
     }
 
     const user = result.rows[0];
-    console.log(user)
-
     //confronto password
     const valid = await bcrypt.compare(pwd, user.pwd);
 
@@ -169,7 +275,6 @@ app.post("/changeAccount", async (req, res) => {
 app.get("/getTipiCubo", async (req, res) => {
   try {
     const result = await pool.query("SELECT * from tipicubo");
-    console.log(result)
     res.json({status: 200, tipiCubo: result.rows});
   } catch (err) {
     console.error(err);
@@ -177,6 +282,43 @@ app.get("/getTipiCubo", async (req, res) => {
   }
 })
 
+app.get("/tipi-algoritmo", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * from tipoalgoritmo");
+    res.json({status: 200, tipiAlgoritmo: result.rows});
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Errore DB");
+  }
+})
+
+app.post("/getAlgoritmi", async (req, res) => {
+    const {idTipoAlg} = req.body
+    try
+    {
+        const result = await pool.query("SELECT * FROM algoritmo WHERE idtipoalg = $1", [idTipoAlg])
+        res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Errore DB");
+  }
+})
+
+app.post("/getAllenamento", async (req, res) => {
+    const {idTipoAlg, idUt} = req.body
+
+    if(!idTipoAlg || !idUt)
+        return res.status(400).send("Parametri mancanti")
+
+    try
+    {
+        const result = await pool.query("SELECT * FROM allenamento WHERE idut = $1 AND idalg IN (SELECT idalg FROM algoritmo WHERE idtipoalg = $2)", [idUt, idTipoAlg])
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Errore DB");
+    }
+})
 
 app.post('/addSolve', async (req, res) => {
 
@@ -204,12 +346,13 @@ app.post('/addSolve', async (req, res) => {
         falloIspezione = false,
         falloMossa = false
     } = req.body;
+    const isDnf = Boolean(req.body.isdnf ?? req.body.isDnf ?? req.body.isDNF ?? req.body.penalties?.dnf ?? false);
 
     // =========================================
     // VALIDAZIONE BASE
     // =========================================
 
-    if (!idUt || !idTipo || tempo == null || !scramble) {
+    if (!idUt || !idTipo || tempo == null || scramble == null) {
         return res.status(400).json({ error: 'Parametri mancanti'});
     }
 
@@ -340,12 +483,12 @@ app.post('/addSolve', async (req, res) => {
 
         const solveResult = await client.query(
             `
-            INSERT INTO solves (scramble, tempo, falloispezione, fallomossa, idsessione, idtipo, idut, ordine )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8 )
+            INSERT INTO solves (scramble, tempo, falloispezione, fallomossa, isdnf, idsessione, idtipo, idut, ordine )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9 )
 
             RETURNING *
             `,
-            [scramble, tempo, falloIspezione, falloMossa, idSessione, idTipo, idUt, ordine ]
+            [scramble, tempo, falloIspezione, falloMossa, isDnf, idSessione, idTipo, idUt, ordine ]
         );
 
         const nuovaSolve = solveResult.rows[0];
@@ -423,7 +566,9 @@ app.post('/getSolves', async (req, res) => {
                 ordine,
                 tempo,
                 falloispezione,
-                fallomossa
+                fallomossa,
+                isdnf,
+                scramble
             FROM solves
             WHERE idut = $1
               AND idtipo = $2
@@ -463,6 +608,7 @@ app.post('/getSolves', async (req, res) => {
         for (let i = 0; i < solves.length; i++) {
 
             const solve = solves[i];
+            const solveTime = getSolveTimeWithPenalties(solve);
 
             // =========================================
             // BEST SINGLE STORICO
@@ -473,10 +619,10 @@ app.post('/getSolves', async (req, res) => {
 
             let isBestSingle = false;
 
-            if (bestSingleSoFar === null || solve.tempo < bestSingleSoFar)
+            if (Number.isFinite(solveTime) && (bestSingleSoFar === null || solveTime < bestSingleSoFar))
             {
                 isBestSingle = true;
-                bestSingleSoFar = solve.tempo;
+                bestSingleSoFar = solveTime;
             }
 
             // =========================================
@@ -491,27 +637,11 @@ app.post('/getSolves', async (req, res) => {
             // =========================================
 
             let avg5 = null;
-
             let isBestAvg5 = false;
 
             if (i >= 4) {
-                // ULTIME 5 SOLVE
                 const last5 = solves.slice(i - 4, i + 1);
-
-                // ESTRAZIONE TEMP
-                let tempi = last5.map(s => s.tempo);
-
-                // ORDINAMENTO
-                tempi.sort((a, b) => a - b);
-
-                // RIMOZIONE BEST E WORST
-                tempi.shift();
-                tempi.pop();
-
-                // MEDIA CENTRALE
-                const somma = tempi.reduce((acc, val) => acc + val, 0);
-
-                avg5 = Math.round(somma / tempi.length);
+                avg5 = calculateRecordValue(last5, 5);
 
                 // =========================================
                 // BEST AVG5 STORICA
@@ -519,7 +649,7 @@ app.post('/getSolves', async (req, res) => {
                 // true se questa solve: ha creato una nuova miglior avg5
                 // =========================================
 
-                if (bestAvg5SoFar === null || avg5 < bestAvg5SoFar) {
+                if (Number.isFinite(avg5) && (bestAvg5SoFar === null || avg5 < bestAvg5SoFar)) {
                     isBestAvg5 = true;
                     bestAvg5SoFar = avg5;
                 }
@@ -539,10 +669,11 @@ app.post('/getSolves', async (req, res) => {
             if (i > 0) {
 
                 const previous = solves[i - 1];
+                const previousTime = getSolveTimeWithPenalties(previous);
 
-                if (solve.tempo < previous.tempo) 
+                if (solveTime < previousTime) 
                     progression = 1;
-                else if (solve.tempo > previous.tempo)
+                else if (solveTime > previousTime)
                     progression = -1;
                 else 
                     progression = 0;
@@ -552,14 +683,26 @@ app.post('/getSolves', async (req, res) => {
             result.push({
                 // Ordine progressivo solve
                 nRecord: solve.ordine,
-                // Tempo solve
-                time: solve.tempo,
+                // Tempo solve con eventuali penalita
+                time: formatSolveTime(solve),
+                scramble: solve.scramble,
+                baseTime: solve.tempo,
+                // Falli associati alla solve
+                falloIspezione: solve.falloispezione,
+                falloMossa: solve.fallomossa,
+                isdnf: solve.isdnf,
+                isDnf: solve.isdnf,
+                penalties: {
+                    inspection: solve.falloispezione,
+                    move: solve.fallomossa,
+                    dnf: solve.isdnf
+                },
                 // Nuovo best single storico
                 isBestSingle,
                 // Nuova best avg5 storica
                 isBestAvg5,
                 // Valore avg5 associato alla solve corrente
-                avg5,
+                avg5: formatRecordValue(avg5),
                 // Miglioramento rispetto alla solve precedente
                 progression
             });
@@ -592,9 +735,8 @@ app.post('/getStats', async (req, res) => {
     // =========================================
 
     const { idUt, idTipo } = req.body;
-
+    
     // VALIDAZIONE BASE
-
     if (!idUt || !idTipo) {
         return res.status(400).json({error: 'Parametri mancanti'});
     }
@@ -623,11 +765,75 @@ app.post('/getStats', async (req, res) => {
             [idTipo]
         );
 
+        const allSolvesResult = await client.query(
+            `
+            SELECT
+                tempo,
+                falloispezione,
+                fallomossa,
+                isdnf
+            FROM solves
+            WHERE idut = $1
+              AND idtipo = $2
+            ORDER BY ordine ASC
+            `,
+            [idUt, idTipo]
+        );
+
+        const allSolves = allSolvesResult.rows;
         const result = [];
 
-        for (const tipoRecord of recordsResult.rows) {
-            let current = null;
+        function getCurrentRecordValue(nsolve) {
+            if (allSolves.length < nsolve) {
+                return {
+                    value: null,
+                    isDnf: false,
+                    isAvailable: false
+                };
+            }
 
+            const value = calculateRecordValue(
+                allSolves.slice(-nsolve).reverse(),
+                nsolve
+            );
+
+            return {
+                value: formatRecordValue(value),
+                isDnf: !Number.isFinite(value),
+                isAvailable: true
+            };
+        }
+
+        function getBestRecordValue(nsolve) {
+            if (allSolves.length < nsolve) {
+                return {
+                    value: null,
+                    isDnf: false,
+                    isAvailable: false
+                };
+            }
+
+            let best = null;
+
+            for (let start = 0; start <= allSolves.length - nsolve; start++) {
+                const value = calculateRecordValue(
+                    allSolves.slice(start, start + nsolve),
+                    nsolve
+                );
+
+                if (Number.isFinite(value) && (best === null || value < best)) {
+                    best = value;
+                }
+            }
+
+            return {
+                value: best,
+                isDnf: best === null,
+                isAvailable: true
+            };
+        }
+
+        for (const tipoRecord of recordsResult.rows) {
             // =========================================
             // CURRENT
             //
@@ -638,64 +844,26 @@ app.post('/getStats', async (req, res) => {
             // per ao3 teniamo tutti e 3 i tempi.
             // =========================================
 
-            const solvesStatsResult = await client.query(
-                `
-                SELECT tempo
-                FROM solves
-                WHERE idut = $1
-                  AND idtipo = $2
-                ORDER BY ordine DESC
-                LIMIT $3
-                `,
-                [idUt, idTipo, tipoRecord.nsolve]
-            );
-
-            const solvesStats = solvesStatsResult.rows;
-
-            if (solvesStats.length === tipoRecord.nsolve) {
-                if (tipoRecord.nsolve === 1) {
-                    current = solvesStats[0].tempo;
-                } else {
-                    const tempi = solvesStats
-                        .map(s => s.tempo)
-                        .sort((a, b) => a - b);
-
-                    if (tipoRecord.nsolve !== 3) {
-                        tempi.shift();
-                        tempi.pop();
-                    }
-
-                    const somma = tempi.reduce((acc, val) => acc + val, 0);
-                    current = Math.round(somma / tempi.length);
-                }
-            }
+            const currentRecord = getCurrentRecordValue(tipoRecord.nsolve);
 
             // =========================================
             // STAT BEST
             //
-            // Record migliore salvato per l'utente
-            // e per il tipo record corrente.
+            // Record migliore ricalcolato sulle solve,
+            // considerando anche le penalita dei falli.
             // =========================================
 
-            const statBestResult = await client.query(
-                `
-                SELECT rr.tempo
-                FROM regrecord rr
-                JOIN solves s
-                  ON s.idsolve = rr.idsolve
-                WHERE rr.idtiporecord = $1
-                  AND s.idut = $2
-                  AND s.idtipo = $3
-                LIMIT 1
-                `,
-                [tipoRecord.idtiporecord, idUt, idTipo]
-            );
+            const bestRecord = getBestRecordValue(tipoRecord.nsolve);
 
             result.push({
                 idTipoRecord: tipoRecord.idtiporecord,
                 descRecord: tipoRecord.descrecord,
-                current,
-                statBest: statBestResult.rows[0]?.tempo ?? null
+                current: currentRecord.value,
+                currentIsDnf: currentRecord.isDnf,
+                currentAvailable: currentRecord.isAvailable,
+                statBest: bestRecord.value,
+                statBestIsDnf: bestRecord.isDnf,
+                statBestAvailable: bestRecord.isAvailable
             });
         }
 
@@ -714,3 +882,339 @@ app.post('/getStats', async (req, res) => {
     }
 
 });
+
+app.post('/getCalendarMonth', async (req, res) => {
+    const { idUt, idTipo, year, month } = req.body;
+    const selectedYear = Number(year);
+    const selectedMonth = Number(month);
+
+    if (!idUt || !idTipo || !Number.isInteger(selectedYear) || !Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+        return res.status(400).json({ error: 'Parametri mancanti o non validi' });
+    }
+
+    const monthStart = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+    const nextMonthDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
+    const nextMonthStart = `${nextMonthDate.getUTCFullYear()}-${String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    const client = await pool.connect();
+
+    try {
+        const solvesResult = await client.query(
+            `
+            SELECT
+                s.idsolve,
+                s.ordine,
+                s.tempo,
+                s.falloispezione,
+                s.fallomossa,
+                s.isdnf,
+                se.dataora,
+                to_char(se.dataora, 'YYYY-MM-DD') AS data
+            FROM solves s
+            JOIN sessioni se
+              ON se.idsessione = s.idsessione
+            WHERE s.idut = $1
+              AND s.idtipo = $2
+              AND se.dataora >= $3::date
+              AND se.dataora < $4::date
+            ORDER BY se.dataora ASC, s.ordine ASC
+            `,
+            [idUt, idTipo, monthStart, nextMonthStart]
+        );
+
+        const recordsResult = await client.query(
+            `
+            SELECT
+                rr.idrecordentry,
+                rr.idtiporecord,
+                rr.tempo,
+                r.descrecord,
+                s.ordine,
+                se.dataora,
+                to_char(se.dataora, 'YYYY-MM-DD') AS data
+            FROM regrecord rr
+            JOIN record r
+              ON r.idtiporecord = rr.idtiporecord
+            JOIN solves s
+              ON s.idsolve = rr.idsolve
+            JOIN sessioni se
+              ON se.idsessione = s.idsessione
+            WHERE s.idut = $1
+              AND s.idtipo = $2
+              AND se.dataora >= $3::date
+              AND se.dataora < $4::date
+            ORDER BY se.dataora ASC, r.nsolve ASC
+            `,
+            [idUt, idTipo, monthStart, nextMonthStart]
+        );
+
+        res.status(200).json({
+            calendar: buildCalendarMonthPayload({
+                year: selectedYear,
+                month: selectedMonth,
+                solves: solvesResult.rows,
+                records: recordsResult.rows
+            })
+        });
+    } catch (err) {
+        console.error('Errore getCalendarMonth:', err);
+        res.status(500).json({ error: 'Errore server' });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/getFullSolveData', async (req, res) => {
+    const { idUt, idTipo, ordine } = req.body;
+
+    // VALIDAZIONE
+
+    if (!idUt || !idTipo || !ordine) 
+        return res.status(400).json({ error: 'Parametri mancanti'});
+
+    const client = await pool.connect();
+
+    try {
+        // RECUPERO SOLVE
+
+        const solveResult = await client.query(
+            `
+            SELECT
+                s.*,
+                se.dataora,
+                tc.desctipo AS nomecubo
+            FROM solves s
+            JOIN sessioni se
+              ON se.idsessione = s.idsessione
+            JOIN tipicubo tc
+              ON tc.idtipo = s.idtipo
+            WHERE s.idut = $1
+              AND s.idtipo = $2
+              AND s.ordine = $3
+            `,
+            [idUt, idTipo, ordine]
+        );
+
+        const solve = solveResult.rows[0];
+
+        if (!solve) 
+          return res.status(404).json({error: 'Solve non trovata'});
+        
+
+        // =========================================
+        // RECUPERO TUTTE LE SOLVE
+        // 
+        // Servono per calcolare: avg3, avg5, avg12
+        // =========================================
+
+        const solvesResult = await client.query(
+            `
+            SELECT
+                ordine,
+                tempo,
+                scramble,
+                falloispezione,
+                fallomossa,
+                isdnf
+            FROM solves
+            WHERE idut = $1
+              AND idtipo = $2
+            ORDER BY ordine ASC
+            `,
+            [idUt, idTipo]
+        );
+
+        const solves = solvesResult.rows;
+
+        // INDEX DELLA SOLVE
+
+        const currentIndex = solves.findIndex(s => s.ordine == ordine);
+
+        function formatSolveWithPenalties(solve) {
+            return {
+                ordine: solve.ordine,
+                scramble: solve.scramble,
+                tempo: formatSolveTime(solve),
+                baseTempo: solve.tempo,
+                falloIspezione: solve.falloispezione,
+                falloMossa: solve.fallomossa,
+                isdnf: solve.isdnf,
+                isDnf: solve.isdnf,
+                penalties: {
+                    inspection: solve.falloispezione,
+                    move: solve.fallomossa,
+                    dnf: solve.isdnf
+                }
+            };
+        }
+
+        // FUNZIONE GENERICA MEDIA
+
+        function calculateAverage(windowSolves) {
+            return calculateRecordValue(windowSolves, windowSolves.length);
+        }
+
+        // =========================================
+        // FUNZIONE GENERICA
+        // 
+        // Trova:
+        // - miglior media
+        // - che contiene la solve
+        // =========================================
+
+        function getBestAverage(size) {
+
+            const windows = [];
+            // SCORRIAMO TUTTE LE FINESTRE
+
+            for (let start = 0; start <= solves.length - size; start++) {
+                const end = start + size - 1;
+
+                // CONTROLLA SE LA SOLVE È DENTRO LA FINESTRA
+                if (currentIndex >= start && currentIndex <= end) {
+                    const windowSolves = solves.slice(start, end + 1);
+                    const avg = calculateAverage(windowSolves);
+
+                    windows.push({
+                        value: avg,
+                        position: `${currentIndex - start + 1}/${size}`,
+                        solves: windowSolves
+                    });
+                }
+            }
+
+            // NESSUNA MEDIA DISPONIBILE
+            if (windows.length === 0) {
+                return {
+                    contributes: false,
+                    value: null,
+                    position: null,
+                    solves: []
+                };
+            }
+
+            // TROVA MEDIA MIGLIORE
+
+            let best = windows[0];
+
+            for (const w of windows) 
+              if (w.value < best.value) 
+                  best = w;
+            
+            // FORMATTA OUTPUT
+            return {
+                contributes: true,
+                value: formatRecordValue(best.value),
+                position: best.position,
+                solves: best.solves.map(formatSolveWithPenalties)
+            };
+        }
+        
+        // RISPOSTA FINALE
+        const response = {
+            order: solve.ordine,
+            scramble: solve.scramble,
+            time: formatSolveTime(solve),
+            baseTime: solve.tempo,
+            sessionTime: solve.dataora,
+            falloIspezione: solve.falloispezione,
+            falloMossa: solve.fallomossa,
+            isdnf: solve.isdnf,
+            isDnf: solve.isdnf,
+            penalties: {
+                inspection: solve.falloispezione,
+                move: solve.fallomossa,
+                dnf: solve.isdnf
+            },
+            cubeType: {
+                id: solve.idtipo,
+                name: solve.nomecubo
+            },
+            averages: {
+                avg3: getBestAverage(3),
+                avg5: getBestAverage(5),
+                avg12: getBestAverage(12)
+            }
+        };
+
+        res.status(200).json(response);
+
+    } catch (err) {
+        console.error('Errore getFullSolveData:', err );
+
+        res.status(500).json({ error: 'Errore server'});
+
+    } finally {
+        client.release();
+    }
+});
+
+
+app.post('/changeSolve', async (req, res) => {
+    const { idUt, idTipo, ordine, campo, valore } = req.body;
+    if (!idUt || !idTipo || !ordine) {
+        return res.status(400).send("Impossibile ottenere la solve");
+    }
+    
+  if(campo.toLowerCase() != 'fallomossa' && campo.toLowerCase() != 'isdnf')
+    return res.status(406).send("Campo non valido")
+
+  if(typeof valore !== "boolean")
+    return res.status(400).send("Valore non valido")
+
+  try {
+    const field = campo.toLowerCase()
+    const values = [idUt, idTipo, ordine, valore]
+    console.log(field)
+    console.log(values)
+    const query = `
+      UPDATE solves
+      SET ${field} = $4
+      WHERE idut = $1 AND idtipo = $2 AND ordine = $3
+      RETURNING *;
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).send("Solve non trovata");
+    }
+
+    const solve = result.rows[0];
+    console.log(solve);
+    res.status(200).json(solve);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Errore server");
+  }
+})
+
+
+app.post('/deleteSolve', async (req, res) => {
+    const { idUt, idTipo, ordine } = req.body;
+    if (!idUt || !idTipo || !ordine) {
+        return res.status(400).send("Impossibile ottenere la solve");
+    }
+    
+  try {
+    const values = [idUt, idTipo, ordine]
+
+    const query = `
+      DELETE FROM solves
+      WHERE idut = $1 AND idtipo = $2 AND ordine = $3
+      RETURNING *;
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).send("Solve non trovata");
+    }
+
+    
+    res.status(200).json({message: "Solve eliminata con successo"});
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Errore server");
+  }
+})

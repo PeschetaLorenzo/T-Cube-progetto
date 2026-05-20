@@ -19,11 +19,7 @@ const successMessage = ref('')
 const page = ref('login')
 
 const checkLoggato = () => {
-  sessionStorage.getItem('utente')
-  if(sessionStorage.getItem('utente') != null)
-    return true
-  
-  return false
+  return sessionStorage.getItem('utente') != null
 }
 
 const validateEmail = (email) => {
@@ -32,13 +28,10 @@ const validateEmail = (email) => {
 }
 
 const changePage = async () => {
-    console.log(page.value  )
     if(page.value == 'login')
         page.value = 'registrati'
     else
         page.value = 'login'
-    console.log(page)
-
 }
 
 const handleLogin = async () => {
@@ -75,13 +68,11 @@ const handleLogin = async () => {
       }, 200)
 
   } catch (error) {
-    console.log(error)
     errorMessage.value = 'Errore durante il login. Riprova.'
     isLoading.value = false
     return
   }
   
-  console.log(sessionStorage.getItem('utente'))
   username.value = JSON.parse(sessionStorage.getItem('utente')).username
   
   successMessage.value = `Benvenuto ${username.value}!`

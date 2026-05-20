@@ -11,12 +11,17 @@ export const useTimerStore = defineStore('timer', {
     inspectionTime: 15,
     interval: null,
     scramble: '',
-    falloIspezione: false
+    scrambleSource: null, // auto | manual | saved
+    falloIspezione: false,
+    falloMossa: false,
+    isDNF: false,
+    ordine: null
   }),
 
   actions: {
     setReady() {
       this.phase = 'ready'
+      this.falloMossa = false
     },
 
     startInspection() {
