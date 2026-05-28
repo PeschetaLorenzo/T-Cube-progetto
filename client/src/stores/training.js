@@ -1,12 +1,37 @@
 import { defineStore } from 'pinia'
 import { getUtente } from '@/js/controller'
-import {
-    getAlgoritmiByTipo,
-    getAllenamentoByTipo,
-    getTipiAlgoritmo,
-    salvaSolveAllenamento
-} from '@/js/trainingService'
-import { generateTrainingScramble, toRendererMoves } from '@/js/trainingScramble'
+import {getAlgoritmiByTipo, getAllenamentoByTipo, getTipiAlgoritmo, salvaSolveAllenamento} from '@/js/trainingService'
+import { normalizeTutorialText } from '@/js/tutorial'
+
+const TRAINING_STATS_EVENT = 'training-stats-updated'
+
+function trainingStatsKey(idUt, idTipoAlg) {
+    return `trainingStats:${idUt}:${idTipoAlg}`
+}
+
+function readTrainingStats(idUt, idTipoAlg) {
+    if (!idUt || !idTipoAlg) {
+        return []
+    }
+
+    try {
+        return JSON.parse(sessionStorage.getItem(trainingStatsKey(idUt, idTipoAlg)) ?? '[]')
+    } catch (err) {
+        return []
+    }
+}
+
+function writeTrainingStats(idUt, idTipoAlg, statsByAlg) {
+    if (!idUt || !idTipoAlg) {
+        return
+    }
+
+    sessionStorage.setItem(
+        trainingStatsKey(idUt, idTipoAlg),
+        JSON.stringify(Object.values(statsByAlg))
+    )
+    window.dispatchEvent(new Event(TRAINING_STATS_EVENT))
+}
 
 function emptyStats(idAlg) {
     return {
@@ -35,6 +60,15 @@ function randomItem(items) {
     return items[(Math.random() * items.length) | 0]
 }
 
+function matchesQuery(value, query) {
+    const normalizedValue = normalizeTutorialText(value)
+    const queries = Array.isArray(query) ? query : [query]
+
+    return queries
+        .filter(Boolean)
+        .some(item => normalizedValue.includes(normalizeTutorialText(item)))
+}
+
 export const useTrainingStore = defineStore('training', {
     state: () => ({
         tipiAlgoritmo: [],
@@ -44,15 +78,14 @@ export const useTrainingStore = defineStore('training', {
         statsByAlg: {},
         currentAlgorithmId: null,
         currentScramble: '',
-        currentScrambleMoves: [],
-        currentRendererMoves: [],
-        currentAuf: '',
+        statsUserId: null,
         isTrainingActive: false,
         loadingTypes: false,
         loadingAlgorithms: false,
         saving: false,
         error: null,
-        lastSaveError: null
+        lastSaveError: null,
+        tutorialTrainingRequest: null
     }),
 
     getters: {
@@ -81,7 +114,7 @@ export const useTrainingStore = defineStore('training', {
                     await this.selectType(this.tipiAlgoritmo[0].idTipoAlg)
                 }
             } catch (err) {
-                this.error = err.message || 'Impossibile caricare i tipi algoritmo'
+                this.error = 'Impossibile caricare i tipi algoritmo'
             } finally {
                 this.loadingTypes = false
             }
@@ -92,8 +125,6 @@ export const useTrainingStore = defineStore('training', {
             this.isTrainingActive = false
             this.currentAlgorithmId = null
             this.currentScramble = ''
-            this.currentScrambleMoves = []
-            this.currentRendererMoves = []
             await this.loadAlgorithmsForSelectedType()
         },
 
@@ -108,32 +139,74 @@ export const useTrainingStore = defineStore('training', {
 
             try {
                 const utente = getUtente()
-                const [algorithms, stats] = await Promise.all([
-                    getAlgoritmiByTipo(this.selectedTypeId),
-                    utente ? getAllenamentoByTipo(this.selectedTypeId, utente.id) : Promise.resolve([])
-                ])
+                const algorithms = await getAlgoritmiByTipo(this.selectedTypeId)
+                const cachedStats = utente ? readTrainingStats(utente.id, this.selectedTypeId) : []
 
                 this.algorithms = algorithms
                 this.selectedAlgorithmIds = algorithms.map(algoritmo => algoritmo.idAlg)
-                this.statsByAlg = {}
+                this.statsUserId = utente?.id ?? null
+                this.setStatsForAlgorithms(cachedStats)
 
-                for (const algoritmo of algorithms) {
-                    this.statsByAlg[algoritmo.idAlg] = emptyStats(algoritmo.idAlg)
-                }
-
-                for (const stat of stats) {
-                    this.statsByAlg[stat.idAlg] = {
-                        ...emptyStats(stat.idAlg),
-                        ...stat
-                    }
+                if (utente) {
+                    const stats = await getAllenamentoByTipo(this.selectedTypeId, utente.id)
+                    this.setStatsForAlgorithms(stats)
+                    writeTrainingStats(utente.id, this.selectedTypeId, this.statsByAlg)
                 }
             } catch (err) {
                 this.algorithms = []
                 this.selectedAlgorithmIds = []
                 this.statsByAlg = {}
-                this.error = err.message || 'Impossibile caricare gli algoritmi'
+                this.error = 'Impossibile caricare gli algoritmi'
             } finally {
                 this.loadingAlgorithms = false
+            }
+        },
+
+        setStatsForAlgorithms(stats = []) {
+            this.statsByAlg = {}
+
+            for (const algoritmo of this.algorithms) {
+                this.statsByAlg[algoritmo.idAlg] = emptyStats(algoritmo.idAlg)
+            }
+
+            for (const stat of stats) {
+                if (this.statsByAlg[stat.idAlg]) {
+                    this.statsByAlg[stat.idAlg] = {
+                        ...emptyStats(stat.idAlg),
+                        ...stat
+                    }
+                }
+            }
+        },
+
+        clearUserStats() {
+            this.statsUserId = null
+            this.lastSaveError = null
+            this.isTrainingActive = false
+            this.setStatsForAlgorithms([])
+        },
+
+        async refreshUserStats() {
+            if (!this.selectedTypeId || this.algorithms.length === 0) {
+                return
+            }
+
+            const utente = getUtente()
+
+            if (!utente) {
+                this.clearUserStats()
+                return
+            }
+
+            this.statsUserId = utente.id
+            this.setStatsForAlgorithms(readTrainingStats(utente.id, this.selectedTypeId))
+
+            try {
+                const stats = await getAllenamentoByTipo(this.selectedTypeId, utente.id)
+                this.setStatsForAlgorithms(stats)
+                writeTrainingStats(utente.id, this.selectedTypeId, this.statsByAlg)
+            } catch (err) {
+                this.lastSaveError = 'Impossibile aggiornare le statistiche training'
             }
         },
 
@@ -159,6 +232,57 @@ export const useTrainingStore = defineStore('training', {
             this.selectedAlgorithmIds = []
         },
 
+        requestTutorialTraining(trainingLink) {
+            this.tutorialTrainingRequest = {
+                ...trainingLink,
+                requestedAt: Date.now()
+            }
+        },
+
+        clearTutorialTrainingRequest() {
+            this.tutorialTrainingRequest = null
+        },
+
+        async applyTutorialTrainingRequest() {
+            const request = this.tutorialTrainingRequest
+            if (!request) {
+                return false
+            }
+
+            if (this.tipiAlgoritmo.length === 0) {
+                await this.loadTypes()
+            }
+
+            const requestedType = this.tipiAlgoritmo.find(tipo => {
+                return matchesQuery(tipo.descTipo ?? tipo.desctipo ?? '', request.typeQuery)
+            })
+
+            if (!requestedType) {
+                this.error = 'Training collegato non disponibile per questa sezione'
+                this.clearTutorialTrainingRequest()
+                return false
+            }
+
+            if (Number(this.selectedTypeId) !== Number(requestedType.idTipoAlg)) {
+                await this.selectType(requestedType.idTipoAlg)
+            }
+
+            if (request.algorithmQuery) {
+                const matchingAlgorithms = this.algorithms
+                    .filter(algoritmo => matchesQuery(algoritmo.descAlg ?? '', request.algorithmQuery))
+                    .map(algoritmo => algoritmo.idAlg)
+
+                if (matchingAlgorithms.length > 0) {
+                    this.selectedAlgorithmIds = matchingAlgorithms
+                }
+            } else if (this.algorithms.length > 0) {
+                this.selectAllAlgorithms()
+            }
+
+            this.clearTutorialTrainingRequest()
+            return true
+        },
+
         startTraining() {
             if (!this.hasSelectedAlgorithms) {
                 this.error = 'Seleziona almeno un algoritmo da allenare'
@@ -180,8 +304,6 @@ export const useTrainingStore = defineStore('training', {
             if (selected.length === 0) {
                 this.currentAlgorithmId = null
                 this.currentScramble = ''
-                this.currentScrambleMoves = []
-                this.currentRendererMoves = []
                 this.error = 'Seleziona almeno un algoritmo da allenare'
                 return false
             }
@@ -189,21 +311,18 @@ export const useTrainingStore = defineStore('training', {
             const algoritmo = randomItem(selected)
 
             try {
-                const scramble = generateTrainingScramble(algoritmo.mosse)
+                if (!algoritmo.scramble) {
+                    throw new Error('Scramble algoritmo mancante')
+                }
 
                 this.currentAlgorithmId = algoritmo.idAlg
-                this.currentScramble = scramble.scramble
-                this.currentScrambleMoves = scramble.moves
-                this.currentRendererMoves = toRendererMoves(scramble.moves)
-                this.currentAuf = scramble.auf
+                this.currentScramble = algoritmo.scramble
                 this.error = null
                 return true
             } catch (err) {
                 this.currentAlgorithmId = algoritmo.idAlg
                 this.currentScramble = ''
-                this.currentScrambleMoves = []
-                this.currentRendererMoves = []
-                this.error = err.message || 'Scramble algoritmo non valido'
+                this.error = 'Scramble algoritmo non valido o mancante'
                 return false
             }
         },
@@ -213,20 +332,23 @@ export const useTrainingStore = defineStore('training', {
                 return
             }
 
+            const utente = getUtente()
+
+            if (!utente) {
+                this.clearUserStats()
+                this.lastSaveError = 'Effettua il login per salvare le statistiche training'
+                this.prepareNextSolve()
+                return
+            }
+
             const idAlg = this.currentAlgorithmId
             const updatedStats = nextStats(this.getStatsForAlgorithm(idAlg), Math.round(tempo))
             this.statsByAlg = {
                 ...this.statsByAlg,
                 [idAlg]: updatedStats
             }
-
-            const utente = getUtente()
-
-            if (!utente) {
-                this.lastSaveError = 'Effettua il login per salvare le statistiche training'
-                this.prepareNextSolve()
-                return
-            }
+            this.statsUserId = utente.id
+            writeTrainingStats(utente.id, this.selectedTypeId, this.statsByAlg)
 
             this.saving = true
             this.lastSaveError = null
@@ -241,7 +363,7 @@ export const useTrainingStore = defineStore('training', {
                     nSolves: updatedStats.nSolves
                 })
             } catch (err) {
-                this.lastSaveError = err.message || 'Salvataggio statistiche training non riuscito'
+                this.lastSaveError = 'Salvataggio statistiche training non riuscito'
             } finally {
                 this.saving = false
                 this.prepareNextSolve()

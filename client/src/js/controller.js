@@ -28,6 +28,7 @@ export function getUtente() {
 
 function setUtente(utente) {
     writeStorage('utente', utente)
+    window.dispatchEvent(new Event('auth-updated'))
 }
 
 function getTipoCuboId() {
@@ -299,7 +300,6 @@ export async function changeSolve(campo, valore) {
         setStatsStorage([])
         return []
     }
-    console.log(readStorage('lastSolve'))
     const res = await postRequest('/changeSolve', {
         idUt: utente.id,
         idTipo: getTipoCuboId(),
@@ -321,7 +321,6 @@ export async function deleteSolve() {
         setStatsStorage([])
         return []
     }
-    console.log(getLastXTempi(1)[0].nRecord)
     const res = await postRequest('/deleteSolve', {
         idUt: utente.id,
         idTipo: getTipoCuboId(),
@@ -339,7 +338,6 @@ export async function deleteSolve() {
 function updateTimerStore(){
     const timer = useTimerStore()
     const lastSolve = getLastXTempi(1)[0]
-    console.log(lastSolve)
     timer.time = lastSolve.time
     timer.scramble = lastSolve.scramble
     timer.scrambleSource = 'saved'

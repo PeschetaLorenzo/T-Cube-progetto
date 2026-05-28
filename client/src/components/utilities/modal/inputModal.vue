@@ -1,7 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
 import FormInput from '../FormInput.vue'
-import FormButton from '../FormInput.vue'
 import { inputState, closeInputModal } from './showInputModal'
 
 const m_scramble = ref(inputState.value)
@@ -21,7 +20,6 @@ watch(m_scramble, (value) => {
 
 const handleKeyPress = (e) => {
     inputState.value = m_scramble.value
-    console.log(inputState.value)
     if (e.key === 'Enter') {
         closeInputModal()
     }

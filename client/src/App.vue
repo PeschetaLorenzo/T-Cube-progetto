@@ -21,6 +21,15 @@ import timer from './components/timer/timer.vue';
 import trainingPage from './components/training/training.vue'
 import trainingHeader from './components/header/trainingHeader.vue'
 import { useTrainingStore } from '@/stores/training'
+import tutorialPage from './components/tutorial/tutorial.vue'
+
+import login from './components/login/login.vue'
+import Cubo from './components/Cubo.vue'
+import { showAlert } from './components/utilities/modal/alert'
+
+import TutorialHome from './components/tutorial/TutorialHome.vue'
+import { tutorialCategories } from '@/data/tutorial/categories'
+
 
 // --- Training header logic ---
 const training = useTrainingStore()
@@ -42,30 +51,29 @@ const guideMessage = computed(() => {
   }
   return ''
 })
+
 function startTraining() {
   training.startTraining()
 }
+
 function stopTraining() {
   training.stopTraining()
 }
-
-import login from './components/login/login.vue'
-import Cubo from './components/Cubo.vue'
-import { showAlert } from './components/utilities/modal/alert'
-
 
 
 const tipiCubo = ref([])
 const scrambleCmp = ref(null)
 const cuboCmp = ref(null)
 const page = ref('timer')
+var pagePrec = null
 const tipoCuboModel = ref(1)
 const bpas = ref([])
 const wpas = ref([])
 const timerStore = useTimerStore()
 
-let scrambleMoves = []
-var showScramble = true
+let currentScrambleMoves = []
+const showScramble = ref(true)
+const selectedTutorialCategoryId = ref('')
 
 // Opzioni mostrate nella select dei tipi cubo.
 const tipiCuboTexts = computed(() => tipiCubo.value.map(opt => opt.desctipo))
@@ -88,6 +96,7 @@ function updatePossibleAvgs() {
 function clearScramble() {
   timerStore.scramble = ''
   timerStore.scrambleSource = null
+  currentScrambleMoves = []
 
   if (scrambleCmp.value) {
     scrambleCmp.value.setScramble([])
@@ -105,13 +114,13 @@ function onBtnEvent(action) {
 
     case 'oldScramble':
       if (!selectedTipoCubo.value?.scrambled || !cmp) return
-      if(cmp.prevScramble[cmp.prevScramble.length-1].length != 0)
+      if (cmp.prevScramble.at(-1)?.length)
         cmp.oldScramble()
       break
 
     case 'insert':
       showInput()
-      showScramble = true
+      showScramble.value = true
       break
   }
 }
@@ -119,13 +128,24 @@ function onBtnEvent(action) {
 function onPageChange(newPage) {
   if(timerStore.phase == 'idle') {
     if(newPage == 'login' && page.value == 'login')
-      newPage = 'timer'
+      newPage = pagePrec
+    pagePrec = page.value
     page.value = newPage
   } 
 }
 
+function openTrainingFromTutorial(trainingLink) {
+  training.requestTutorialTraining(trainingLink)
+  onPageChange('training')
+}
+
+function openTutorialCategory(categoryId) {
+  selectedTutorialCategoryId.value = categoryId
+  onPageChange('tutorial')
+}
+
 function closeLogin(){
-  page.value = 'timer'
+  page.value = pagePrec
 }
 
 function newScramble(newScramble, source = 'auto') {
@@ -152,6 +172,7 @@ function newScramble(newScramble, source = 'auto') {
     newScramble = parseScramble(newScramble)
 
     newScramble = displayScramble(newScramble)
+    currentScrambleMoves = [...newScramble]
     
     timerStore.scramble = newScramble
     timerStore.scrambleSource = source
@@ -165,7 +186,6 @@ function newScramble(newScramble, source = 'auto') {
   }
   catch(err)
   {
-    console.log(err)
     showAlert('Lo scramble non è nel fomato corretto', 'warning')
     showInput()
   }
@@ -199,14 +219,14 @@ watch(() => timerStore.phase, (newPhase, oldPhase) => {
   if (oldPhase === 'running' && newPhase === 'idle' && selectedTipoCubo.value?.scrambled && scrambleCmp.value) {
     // Genera automaticamente uno scramble dopo una solve salvata.
     scrambleCmp.value.generateScramble()
-    showScramble = selectedTipoCubo.scrambled
+    showScramble.value = selectedTipoCubo.value.scrambled
   }
 })
 
 // Quando il cubo 3D viene montato, applica l'ultimo scramble gia generato.
 watch(cuboCmp, (cmp) => {
-  if (cmp && scrambleMoves.length > 0) {
-    cmp.applyNewScramble(scrambleMoves)
+  if (cmp && currentScrambleMoves.length > 0) {
+    cmp.applyNewScramble(currentScrambleMoves)
   }
 }, { flush: 'post' })
 
@@ -215,7 +235,7 @@ watch(selectedTipoCubo, async (tipoCubo) => {
   if (!tipoCubo) return
 
   sessionStorage.setItem('tipoCubo', JSON.stringify(tipoCubo))
-  showScramble = tipoCubo.scrambled
+  showScramble.value = tipoCubo.scrambled
   await Promise.all([getUserSolves(), getStatistiche()])
   
   if (!tipoCubo.scrambled) {
@@ -261,19 +281,34 @@ watch(selectedTipoCubo, async (tipoCubo) => {
         :stopTraining="stopTraining"
       />
     </div>
+    <div v-else-if="page == 'tutorial'" class="ms-5 tutorial-header-home">
+      <TutorialHome
+      :showLabel="false"
+      :categories="tutorialCategories"
+      @select="openTutorialCategory"
+      />
+      {{ selectedTutorialCategoryId }}
+    </div>
+    <div v-else-if="page == 'tutorial'">
+
+    </div>
     <div v-else>
 
     </div>
     
 
   </header>
-  <main :class="['row', { 'training-main': page == 'training' }]">
+  <main :class="['row', { 'training-main': page == 'training' || page == 'tutorial' }]">
     <aside v-if="page == 'timer'" class="col-3">
       <asideTable class="ps-3 pe-5"></asideTable>
     </aside>
-    <section :class="page == 'training' ? 'col-12 training-section' : 'col-7'">
+    <section :class="page == 'training' || page == 'tutorial' ? 'col-12 training-section' : 'col-7'">
       <timer v-if="page == 'timer'" class="mr-3" :wpas="wpas" :bpas="bpas" :canUseTimer="canUseTimer"></timer>
-      <div v-if="page == 'tutorial'" class="">tutorial</div>
+      <tutorialPage
+        v-if="page == 'tutorial'"
+        :selectedCategoryId="selectedTutorialCategoryId"
+        @openTraining="openTrainingFromTutorial"
+      ></tutorialPage>
       <trainingPage v-if="page == 'training'"></trainingPage>
       <login v-if="page == 'login'" class="" @closeLogin="closeLogin"></login>
     </section>
@@ -281,7 +316,7 @@ watch(selectedTipoCubo, async (tipoCubo) => {
     <!--<div class="col-3"></div>-->
 
   </main>
-  <Cubo v-if="page=='timer' && selectedTipoCubo?.rendered" ref="cuboCmp" :autoPlayOnTurnsChange="true"></Cubo>
+  <Cubo v-if="page=='timer' && selectedTipoCubo?.rendered" ref="cuboCmp" class="timer-cube" :autoPlayOnTurnsChange="true"></Cubo>
   <BootstrapAlert></BootstrapAlert>
   <SolveInfoModal></SolveInfoModal>
   
@@ -328,6 +363,27 @@ main{
   min-width: 0;
 }
 
+.tutorial-header-home {
+  min-width: 0;
+}
+
+.tutorial-header-home:deep(.tutorial-home) {
+  width: 100%;
+  height: auto;
+  padding: 0;
+  overflow: visible;
+}
+
+.tutorial-header-home:deep(.category-grid) {
+  grid-template-columns: repeat(3, minmax(8rem, 1fr));
+  gap: 0.65rem;
+}
+
+.tutorial-header-home:deep(.tutorial-card) {
+  min-height: 4.75rem;
+  padding: 0.65rem;
+}
+
 aside{
   height: 100%;
   max-height: 80%;
@@ -335,7 +391,7 @@ aside{
 }
 
 
-Cubo{
+.timer-cube{
   position: absolute;
   z-index: 10;
   display: block;
@@ -345,7 +401,7 @@ Cubo{
   height: 100px;
 }
 
-:deep(.scene) {
+.timer-cube:deep(.scene) {
   position: absolute;
   z-index: 10;
   display: block;

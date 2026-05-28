@@ -14,14 +14,10 @@ export default {
             scramble: [],
             prevScramble: []
         }
-
-    },
-    computed:{
-        
     },
     methods:{
         generateScramble(emitEvent = true){
-            this.prevScramble.push(this.scramble);
+            this.prevScramble.push([...this.scramble]);
             this.scramble = displayScramble(generateScramble(this.lenScramble))
             if (emitEvent) {
                 this.$emit('newScramble', this.scramble)
@@ -48,7 +44,7 @@ export default {
 
 <template>
     <div class="d-flex flex-row flex-wrap justify-content-center w-100">
-        <p v-for="item in scramble" class="m-2">
+        <p v-for="(item, index) in scramble" :key="`${item}-${index}`" class="m-2">
             {{ item }}
         </p>
 

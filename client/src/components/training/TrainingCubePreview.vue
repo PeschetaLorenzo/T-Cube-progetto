@@ -1,12 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import Cubo from '@/components/Cubo.vue'
 
 defineProps({
-    rendererMoves: {
-        type: Array,
-        default: () => []
-    },
     fallbackImage: {
         type: String,
         default: null
@@ -15,10 +10,6 @@ defineProps({
         type: String,
         default: 'Caso training'
     },
-    renderKey: {
-        type: [String, Number],
-        default: 0
-    }
 })
 
 const imageBroken = ref(false)
@@ -38,18 +29,8 @@ function resolveImagePath(path) {
 
 <template>
     <section class="preview">
-        <Cubo
-            v-if="rendererMoves.length > 0"
-            :key="renderKey"
-            :turns="rendererMoves"
-            :autoPlayOnTurnsChange="true"
-            :keyboardEnabled="false"
-            :showControls="false"
-            :animationSpeed="0.18"
-        />
-
         <img
-            v-else-if="fallbackImage && !imageBroken"
+            v-if="fallbackImage && !imageBroken"
             :src="resolveImagePath(fallbackImage)"
             :alt="alt"
             @error="imageBroken = true"
@@ -80,9 +61,10 @@ function resolveImagePath(path) {
 }
 
 img {
-    max-width: min(420px, 80%);
-    max-height: 300px;
+    max-width: min(520px, 80%);
+    max-height: 400px;
     object-fit: contain;
+    width: 210px;
 }
 
 .placeholder {

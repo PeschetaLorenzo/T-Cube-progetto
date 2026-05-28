@@ -1218,3 +1218,104 @@ app.post('/deleteSolve', async (req, res) => {
     res.status(500).send("Errore server");
   }
 })
+
+app.post('/allenamento/solve', async (req, res) => {
+
+    /* =========================================
+    // DATI RICEVUTI DAL CLIENT
+    // 
+    // {
+    //   idUt: number
+    //   idAlg: number
+    //   tempo: number
+    //   best: number
+    //   media: number
+    //   nSolves: number
+    // }
+    // ========================================= */
+
+    const {idUt, idAlg, tempo, best, media, nSolves} = req.body;
+
+    // VALIDAZIONE BASE
+    if ( !idUt || !idAlg || best == null || media == null || nSolves == null) 
+        return res.status(400).json({ error: 'Parametri mancanti'});
+    
+
+    const client = await pool.connect();
+
+    try {
+        // APERTURA TRANSAZIONE
+
+        await client.query('BEGIN');
+
+        // LOCK ANTI CONCORRENZA
+
+        await client.query( 'SELECT pg_advisory_xact_lock($1, $2)', [idUt, idAlg]);
+
+        // CONTROLLO ESISTENZA RECORD
+        const trainingResult = await client.query(
+            `
+            SELECT *
+            FROM allenamento
+            WHERE idut = $1
+              AND idalg = $2
+            `,
+            [idUt, idAlg]
+        );
+
+        let training;
+
+        // UPDATE RECORD ESISTENTE
+        if (trainingResult.rows.length > 0) {
+
+            const updateResult = await client.query(
+                `
+                UPDATE allenamento
+                SET
+                    best = $1,
+                    media = $2,
+                    nsolves = $3
+                WHERE idut = $4
+                  AND idalg = $5
+
+                RETURNING *
+                `,
+                [best, media, nSolves, idUt, idAlg]
+            );
+
+            training = updateResult.rows[0];
+        } else {
+
+            // INSERT NUOVO RECORD
+            const insertResult = await client.query(
+                `
+                INSERT INTO allenamento
+                (idut, idalg, best, media, nsolves)
+                VALUES ( $1, $2, $3, $4, $5)
+                RETURNING *
+                `,
+                [idUt, idAlg, best, media, nSolves ]
+            );
+
+            training = insertResult.rows[0];
+        }
+
+        // COMMIT FINALE
+        await client.query('COMMIT');
+
+        // RISPOSTA
+        res.status(200).json({ training });
+
+    } catch (err) {
+
+        // ROLLBACK
+        await client.query('ROLLBACK');
+
+        console.error('Errore saveTraining:', err);
+        res.status(500).json({ error: 'Errore server' });
+
+    } finally {
+        // RILASCIO CONNESSIONE
+        client.release();
+    }
+});

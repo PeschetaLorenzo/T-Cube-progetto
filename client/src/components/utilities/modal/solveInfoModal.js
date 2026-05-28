@@ -47,7 +47,6 @@ export async function openSolveInfoModal(solveOrOrder = demoSolveInfo) {
   if (typeof solveOrOrder === 'number' || typeof solveOrOrder === 'string') {
     try {
       solveInfoModalState.solve = await getFullSolveData(solveOrOrder)
-      console.log(solveInfoModalState.solve)
       solveInfoModalState.user = JSON.parse(sessionStorage.getItem('utente'))
     } catch (err) {
       console.error('Errore apertura dettaglio solve:', err)

@@ -41,6 +41,7 @@ function normalizzaAlgoritmo(algoritmo) {
         idAlg: asNumber(id),
         descAlg: String(algoritmo.descAlg ?? algoritmo.descalg ?? algoritmo.desc_alg ?? algoritmo.nome ?? ''),
         mosse: String(algoritmo.mosse ?? algoritmo.moves ?? algoritmo.algoritmo ?? '').trim(),
+        scramble: String(algoritmo.scramble ?? '').trim(),
         cubeState: algoritmo.cubeState ?? algoritmo.cubestate ?? algoritmo.cube_state ?? null,
         imgpath: algoritmo.imgpath ?? algoritmo.imgpath ?? algoritmo.imgpath ?? null,
         idTipoAlg: asNumber(idTipo)

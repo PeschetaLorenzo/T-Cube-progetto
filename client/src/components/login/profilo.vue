@@ -70,6 +70,8 @@ const handleLogout = () => {
 
   window.dispatchEvent(new Event('solves-updated'))
   window.dispatchEvent(new Event('stats-updated'))
+  window.dispatchEvent(new Event('training-stats-updated'))
+  window.dispatchEvent(new Event('auth-updated'))
   emit('logout')
 }
 </script>
@@ -126,11 +128,14 @@ const handleLogout = () => {
 
 <style scoped>
 .profilo-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 600px;
-  width: 100%;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 600px;
+    width: 100%;
+    top: -50px;
+    margin-top: 15rem;
 }
 
 .profilo-card {

@@ -160,13 +160,14 @@ const handleKeyPress = (e) => {
 
 <style scoped>
 .login-container { 
-    position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 600px;
-  width: 100%;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 600px;
+    width: 100%;
     top: -50px;
+    margin-top: 15rem;
 }
 
 .login-card {

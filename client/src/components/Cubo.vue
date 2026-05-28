@@ -316,6 +316,7 @@
 
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { cubeToState, SOLVED_STATE } from '@/js/cube';
 
 type BasicFace = 'u' | 'f' | 'r' | 'l' | 'b' | 'd';
 type Face = BasicFace | 'm' | 'e' | 's';
@@ -332,15 +333,13 @@ type LayersMap = Record<Face, FaceLayer>;
 const props = withDefaults(
   defineProps<{
     turns?: string[];
+    cubeState?: string;
     autoPlayOnTurnsChange?: boolean;
-    keyboardEnabled?: boolean;
-    showControls?: boolean;
     animationSpeed?: number;
   }>(),
   {
+    cubeState: SOLVED_STATE,
     autoPlayOnTurnsChange: true,
-    keyboardEnabled: false,
-    showControls: true,
     animationSpeed: 0.8
   }
 );
@@ -348,13 +347,11 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'update:turns', value: string[]): void;
   (e: 'move', value: string): void;
-  (e: 'scramble', value: string[]): void;
 }>();
 
 const animationSpeedRef = ref(props.animationSpeed ?? 1);
 
 const moveTransitionTime = () => 1.2 * animationSpeedRef.value;
-const rotationAnimationTime = () => 120 * animationSpeedRef.value;
 
 const layers: LayersMap = {
   u: { corners: [0, 1, 3, 2], edges: [0, 1, 3, 2] },
@@ -372,21 +369,16 @@ const rootRef = ref<HTMLElement | null>(null);
 const turnQueue = ref<Turn[]>([]);
 const nTurn = ref(0);
 
-let isRotating = false;
-let isKeyRotating = false;
 let isDragging = false;
-let moveInterval: number | null = null;
 let nextMoveTimeout: number | null = null;
-let lastMoveKey: string | null = null;
-let keyRotationInterval: number | null = null;
 
 let previousMousePosition = { x: 0, y: 0 };
 let cubeRotation = { x: -20, y: -30, z: 9 };
-const rotationSpeed = 2;
 
 let sceneElement: HTMLElement | null = null;
 let layerElements: HTMLElement[] = [];
 let solvedCubeClasses: string[] = [];
+let isMounted = false;
 
 function asTurn(face: Face, step: 1 | 2 | 3): Turn {
   return `${face}${step}` as Turn;
@@ -440,6 +432,46 @@ function normalizeTurns(input: string[] | undefined): Turn[] {
     .filter((turn): turn is Turn => turn !== null);
 }
 
+function invertMoveToken(move: string): string {
+  if (move.endsWith('2')) return move;
+  if (move.endsWith("'")) return move.slice(0, -1);
+  return `${move}'`;
+}
+
+function invertAlgorithm(algorithm: string): string[] {
+  return algorithm
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .reverse()
+    .map(invertMoveToken);
+}
+
+function cleanCubeState(cubeState: string | undefined): string {
+  const cleanState = String(cubeState || SOLVED_STATE).replace(/\s+/g, '').toUpperCase();
+
+  if (cleanState.length !== 54 || /[^URFDLB]/.test(cleanState)) {
+    return SOLVED_STATE;
+  }
+
+  return cleanState;
+}
+
+function getInitialStateTurns(): Turn[] {
+  const cleanState = cleanCubeState(props.cubeState);
+
+  if (cleanState === SOLVED_STATE) {
+    return [];
+  }
+
+  const solution = cubeToState(cleanState);
+  if (!solution) {
+    return [];
+  }
+
+  return normalizeTurns(invertAlgorithm(solution));
+}
+
 function sameTurns(a: Turn[], b: Turn[]): boolean {
   if (a.length !== b.length) return false;
 
@@ -479,8 +511,8 @@ function restoreSolvedCubeState(): void {
   }
 }
 
-function resetCube(options: { emitUpdate?: boolean } = {}): void {
-  const { emitUpdate = true } = options;
+function resetCube(options: { emitUpdate?: boolean; applyInitialState?: boolean } = {}): void {
+  const { emitUpdate = true, applyInitialState = true } = options;
 
   if (nextMoveTimeout !== null) {
     clearTimeout(nextMoveTimeout);
@@ -489,9 +521,14 @@ function resetCube(options: { emitUpdate?: boolean } = {}): void {
 
   setTurns([], { resetIndex: true, emitUpdate });
   restoreSolvedCubeState();
+
+  if (applyInitialState) {
+    applyTurnsInstant(getInitialStateTurns());
+  }
 }
 
-function move(turn: Turn): void {
+function move(turn: Turn, options: { emitMove?: boolean } = {}): void {
+  const { emitMove = true } = options;
   nTurn.value++;
 
   const side = turn[0] as Face;
@@ -531,7 +568,9 @@ function move(turn: Turn): void {
     cubies[i].classList.add('turn-' + turn);
   }
 
-  emit('move', turn);
+  if (emitMove) {
+    emit('move', turn);
+  }
 }
 
 function updateCubie(this: HTMLElement): void {
@@ -607,6 +646,24 @@ function updateCubie(this: HTMLElement): void {
   }
 }
 
+function applyTurnsInstant(turns: Turn[]): void {
+  if (turns.length === 0) {
+    nTurn.value = 0;
+    return;
+  }
+
+  for (const turn of turns) {
+    move(turn, { emitMove: false });
+
+    const turningElements = queryAllElements<HTMLElement>('.cube-layer.turn');
+    for (const element of turningElements) {
+      updateCubie.call(element);
+    }
+  }
+
+  nTurn.value = 0;
+}
+
 function nextMove(): void {
   if (queryElement('.cube-layer.turn')) return;
   if (nextMoveTimeout !== null) return;
@@ -637,82 +694,6 @@ function zoom(e: WheelEvent): void {
 
   scene.style.scale = `${scale}%`;
 }
-/*
-function generateScramble(length: number): Turn[] {
-  const turnPool: Turn[][] = [
-    ['u1', 'u2', 'u3'],
-    ['f1', 'f2', 'f3'],
-    ['r1', 'r2', 'r3'],
-    ['l1', 'l2', 'l3'],
-    ['b1', 'b2', 'b3'],
-    ['d1', 'd2', 'd3']
-  ];
-
-  const scramble: Turn[] = [];
-  let prevFace = (Math.random() * 6) | 0;
-  let t2 = prevFace + 1;
-
-  scramble.push(turnPool[prevFace][(Math.random() * 3) | 0]);
-
-  while (scramble.length < length) {
-    let nextFace = (Math.random() * 6) | 0;
-
-    while (nextFace === prevFace) {
-      nextFace = (Math.random() * 6) | 0;
-    }
-
-    if (t2 === 0) {
-      if (nextFace === 5 - prevFace) {
-        while (nextFace === prevFace || nextFace === 5 - prevFace) {
-          nextFace = (Math.random() * 6) | 0;
-        }
-      }
-      t2 = nextFace + 1;
-    } else if (t2 + nextFace === 6) {
-      t2 = 0;
-    } else {
-      t2 = nextFace + 1;
-    }
-
-    scramble.push(turnPool[nextFace][(Math.random() * 3) | 0]);
-    prevFace = nextFace;
-  }
-
-  return scramble;
-}
-*/
-function toggleRotation(): void {
-  const cube = getCube();
-  if (!cube) return;
-
-  isRotating = !isRotating;
-
-  if (!isRotating) {
-    const computedStyle = window.getComputedStyle(cube);
-    const matrix = new DOMMatrix(computedStyle.transform);
-
-    cubeRotation.y = Math.atan2(matrix.m13, matrix.m11) * (180 / Math.PI);
-    cubeRotation.x = Math.atan2(-matrix.m23, matrix.m22) * (180 / Math.PI);
-
-    cube.style.animation = 'none';
-    cube.style.transform = `rotateX(${cubeRotation.x}deg) rotateY(${cubeRotation.y}deg) rotateZ(${cubeRotation.z}deg)`;
-    cube.classList.add('paused');
-
-    if (moveInterval !== null) {
-      clearInterval(moveInterval);
-      moveInterval = null;
-    }
-  } else {
-    cube.style.animation = `rotate ${rotationAnimationTime()}s infinite linear`;
-    cube.style.transform = '';
-    cube.classList.remove('paused');
-
-    if (!queryElement('.cube-layer.turn')) {
-      nextMove();
-    }
-  }
-}
-
 function handleDragStart(e: MouseEvent | TouchEvent): void {
   isDragging = true;
 
@@ -722,17 +703,6 @@ function handleDragStart(e: MouseEvent | TouchEvent): void {
   const clientY = isTouchEvent ? touch?.clientY ?? 0 : e.clientY;
 
   previousMousePosition = { x: clientX, y: clientY };
-
-  if (isRotating || isKeyRotating) {
-    if (keyRotationInterval !== null) {
-      clearInterval(keyRotationInterval);
-      keyRotationInterval = null;
-    }
-
-    if (isRotating) {
-      toggleRotation();
-    }
-  }
 }
 
 function handleDragMove(e: MouseEvent | TouchEvent): void {
@@ -778,37 +748,21 @@ function onAuxClick(): void {
   }
 }
 
-function risolvi(): void {
-  const reversed = [...turnQueue.value].reverse().map((turn) => {
-    const reversedStep = (4 - Number(turn[1])) as 1 | 2 | 3;
-    return `${turn[0]}${reversedStep}` as Turn;
-  });
-
-  setTurns(reversed, { resetIndex: true, emitUpdate: false });
-  nextMove()
-}
-
 function applyNewScramble(scrambleMoves: string[]): void {
-  // Always start from a true solved cube state.
   resetCube({ emitUpdate: false });
 
-  // Apply the new scramble
   const normalized = normalizeTurns(scrambleMoves);
   setTurns(normalized, { resetIndex: true, emitUpdate: false });
-  
-  // Auto-play the scramble
+
   nextTick(() => nextMove());
-  
-  
 }
-/*
-function scombina(): void {
-  const scramble = generateScramble(18);
-  setTurns(scramble, { resetIndex: true, emitUpdate: true });
-  emit('scramble', [...scramble]);
-  nextMove();
+
+function playTurns(): void {
+  resetCube({ emitUpdate: false });
+  setTurns(normalizeTurns(props.turns), { resetIndex: true, emitUpdate: false });
+  nextTick(() => nextMove());
 }
-*/
+
 watch(
   () => props.turns,
   (newTurns) => {
@@ -817,6 +771,10 @@ watch(
     const normalized = normalizeTurns(newTurns);
     if (sameTurns(normalized, turnQueue.value)) return;
 
+    if (isMounted) {
+      resetCube({ emitUpdate: false });
+    }
+
     setTurns(normalized, { resetIndex: true, emitUpdate: false });
 
     if (props.autoPlayOnTurnsChange) {
@@ -824,6 +782,22 @@ watch(
     }
   },
   { deep: true, immediate: true }
+);
+
+watch(
+  () => props.cubeState,
+  () => {
+    if (!isMounted) return;
+
+    resetCube({ emitUpdate: false });
+
+    const normalized = normalizeTurns(props.turns);
+    setTurns(normalized, { resetIndex: true, emitUpdate: false });
+
+    if (props.autoPlayOnTurnsChange) {
+      nextTick(() => nextMove());
+    }
+  }
 );
 
 watch(
@@ -836,13 +810,6 @@ watch(
 );
 
 onMounted(() => {
-  /*
-  if (props.turns === undefined) {
-    const scramble = generateScramble(18);
-    setTurns(scramble, { resetIndex: true, emitUpdate: true });
-    emit('scramble', [...scramble]);
-  }*/
-
   layerElements = queryAllElements<HTMLElement>('.cube-layer');
   for (let i = 0; i < layerElements.length; ++i) {
     layerElements[i].addEventListener('transitionend', updateCubie as EventListener, true);
@@ -871,7 +838,12 @@ onMounted(() => {
   document.addEventListener('touchend', handleDragEnd);
 
   captureSolvedCubeState();
-  nextMove();
+  isMounted = true;
+  resetCube({ emitUpdate: false });
+  setTurns(normalizeTurns(props.turns), { resetIndex: true, emitUpdate: false });
+  if (props.autoPlayOnTurnsChange) {
+    nextMove();
+  }
 });
 
 onUnmounted(() => {
@@ -893,49 +865,18 @@ onUnmounted(() => {
   document.removeEventListener('touchmove', handleDragMove as EventListener);
   document.removeEventListener('touchend', handleDragEnd);
 
-  if (keyRotationInterval !== null) {
-    clearInterval(keyRotationInterval);
-    keyRotationInterval = null;
-  }
-
-  if (moveInterval !== null) {
-    clearInterval(moveInterval);
-    moveInterval = null;
-  }
-
   if (nextMoveTimeout !== null) {
     clearTimeout(nextMoveTimeout);
     nextMoveTimeout = null;
   }
 });
 
-function setSpeed(speed: number): void {
-  if (speed <= 0) {
-    console.warn('Animation speed must be greater than 0');
-    return;
-  }
-  animationSpeedRef.value = speed;
-}
-
-function changeScramble(scramble: string[]): void {
-  console.log(props.turns)
-  setSpeed(10000);
-  risolvi();
-  emit('update:turns', normalizeTurns(scramble));
-  console.log(props.turns)
-  
-  setSpeed(1);;
-}
-
 defineExpose({
   move,
   nextMove,
   resetCube,
-  risolvi,
-  setSpeed,
-  changeScramble,
+  playTurns,
   applyNewScramble
-  //scombina
 });
 </script>
 

@@ -2,76 +2,71 @@ import cubeSource from '../../lib/cube.js?raw'
 import solveSource from '../../lib/solve.js?raw'
 
 
-export function generateScramble(length){
-  let turnPull = [['u1', 'u2', 'u3'], ['f1', 'f2', 'f3'], ['r1', 'r2', 'r3'], ['l1', 'l2', 'l3'], ['b1', 'b2', 'b3'], ['d1', 'd2', 'd3']]
+const SCRAMBLE_MOVES = [
+  ['u1', 'u2', 'u3'],
+  ['f1', 'f2', 'f3'],
+  ['r1', 'r2', 'r3'],
+  ['l1', 'l2', 'l3'],
+  ['b1', 'b2', 'b3'],
+  ['d1', 'd2', 'd3']
+]
 
-  let scramble = []
-  let prevFace = Math.random()*6 | 0
-  let t2 = prevFace +1
-  scramble.push(turnPull[prevFace][Math.random()*3 | 0])
+export function generateScramble(length) {
+  const scramble = []
+  let prevFace = (Math.random() * SCRAMBLE_MOVES.length) | 0
+  let oppositeFaceGuard = prevFace + 1
 
-  while (scramble.length < length)
-  {
+  scramble.push(SCRAMBLE_MOVES[prevFace][(Math.random() * 3) | 0])
 
-    let nextFace = Math.random()*6 | 0
+  while (scramble.length < length) {
+    let nextFace = (Math.random() * SCRAMBLE_MOVES.length) | 0
 
-    while(nextFace == prevFace)
-      nextFace = Math.random()*6 | 0
+    while (nextFace === prevFace) {
+      nextFace = (Math.random() * SCRAMBLE_MOVES.length) | 0
+    }
 
-
-    if(t2 == 0)
-    {
-      if(nextFace == 5 - prevFace)
-      {
-        while(nextFace == prevFace || nextFace == 5 - prevFace)
-          nextFace = Math.random()*6 | 0
+    if (oppositeFaceGuard === 0) {
+      if (nextFace === 5 - prevFace) {
+        while (nextFace === prevFace || nextFace === 5 - prevFace) {
+          nextFace = (Math.random() * SCRAMBLE_MOVES.length) | 0
+        }
       }
-      t2 = nextFace + 1
-    }
-    else
-    {
-      if(t2 + nextFace == 6)
-        t2 = 0
-      else
-        t2 = nextFace + 1
+      oppositeFaceGuard = nextFace + 1
+    } else if (oppositeFaceGuard + nextFace === 6) {
+      oppositeFaceGuard = 0
+    } else {
+      oppositeFaceGuard = nextFace + 1
     }
 
-
-    scramble.push(turnPull[nextFace][Math.random()*3 | 0])
+    scramble.push(SCRAMBLE_MOVES[nextFace][(Math.random() * 3) | 0])
     prevFace = nextFace
   }
 
-  return scramble;
+  return scramble
 }
 
-export function displayScramble(scramble)
-{
-    let visScramble = scramble
-    for(let i = 0; i < scramble.length; i++)
-    {
-        visScramble[i] = scramble[i].toUpperCase()
-        if(scramble[i][1] == '3')
-            visScramble[i] = scramble[i][0] + '\''
-        else if(scramble[i][1] == '1')
-            visScramble[i] = scramble[i][0]
-    }
+export function displayScramble(scramble) {
+  console.log(scramble)
+  return scramble.map((move) => {
+    const normalizedMove = move.toLowerCase()
+    const face = normalizedMove[0].toUpperCase()
+    console.log(face)
+    const amount = normalizedMove[1]
 
-    return visScramble
+    if (amount === '3' || amount === "'") return `${face}'`
+    if (amount === '2') return `${face}2`
+
+    return face
+  })
 }
 
-export function parseScramble(scrambleString){
-  scrambleString = scrambleString.replaceAll("\'", '3')
-  scrambleString = scrambleString.toLocaleLowerCase()
-
-  let scrambleArray = scrambleString.split(' ')
-  scrambleArray = scrambleArray.map((move) => {
-    if(move.length == 1)
-      move += '1'
-      
-    return move
-    });
-  console.log(scrambleArray)
-  return scrambleArray  
+export function parseScramble(scrambleString) {
+  return scrambleString
+    .trim()
+    .replaceAll("'", '3')
+    .toLowerCase()
+    .split(/\s+/)
+    .map((move) => (move.length === 1 ? `${move}1` : move))
 }
 
 const Cube = loadCubeLibrary()
@@ -161,6 +156,19 @@ export function playMoves(cubeState, moves) {
   return movedCube.move(moves || '')
 }
 
+// Converte un'istanza Cube.js nella stringa di stato del cubo.
+export function cubestateFromCube(cube) {
+  if (!cube || typeof cube.asString !== 'function') {
+    throw new Error('Il cubo deve essere un istanza Cube valida.')
+  }
+
+  return cube.asString()
+}
+
+export function cubeStateFromScramble(scramble) {
+  return playMoves(SOLVED_STATE, scramble).asString()
+}
+
 // Calcola le mosse necessarie per portare un cubo da uno stato iniziale a uno
 // stato finale. Se finalState non viene passato, calcola la soluzione classica.
 export function cubeToState(cubeState, finalState = SOLVED_STATE) {
@@ -175,5 +183,5 @@ export function cubeToState(cubeState, finalState = SOLVED_STATE) {
     return null
   }
 
-  return joinMoves(toSolved, Cube.inverse(targetToSolved))
+  return joinMoves(toSolved/*, Cube.inverse(targetToSolved)*/)
 }

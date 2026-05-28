@@ -65,7 +65,6 @@ function formatMs(value) {
 }
 
 function resolveImagePath(path) {
-    console.log(path)
     if (!path) {
         return ''
     }
@@ -211,6 +210,10 @@ button:disabled {
     background: var(--color-background-soft);
     scrollbar-width: auto;
     scrollbar-color: var(--vueGreen) var(--color-background-soft);
+    direction: rtl;
+    > * {
+        direction: ltr;
+    }
 }
 
 .table-shell::-webkit-scrollbar {
@@ -232,8 +235,7 @@ table {
     table-layout: fixed;
 }
 
-th,
-td {
+th, td {
     padding: 0.55rem 0.4rem;
     border-bottom: 1px solid var(--color-border);
     text-align: center;

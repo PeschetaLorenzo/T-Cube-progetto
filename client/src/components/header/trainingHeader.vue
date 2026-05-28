@@ -11,7 +11,7 @@
 <template>
     <div class="top-row">
         <section class="scramble-panel">
-            <span>Scramble</span>
+            <span>Scramble {{ training.currentAlgorithm ? '- ' + training.currentAlgorithm.descAlg : '' }}</span>
             <strong v-if="training.currentScramble">{{ training.currentScramble }}</strong>
             <p v-else>{{ guideMessage }}</p>
         </section>

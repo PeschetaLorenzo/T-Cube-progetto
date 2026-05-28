@@ -6,7 +6,6 @@ import FormAlert from '@/components/utilities/FormAlert.vue'
 import TrainingAlgorithmSidebar from './TrainingAlgorithmSidebar.vue'
 import TrainingCubePreview from './TrainingCubePreview.vue'
 import TrainingTimerPanel from './TrainingTimerPanel.vue'
-import TrainingHeader from '../header/trainingHeader.vue'
 
 const training = useTrainingStore()
 const lastSolveMs = ref(null)
@@ -31,7 +30,6 @@ const { phase, formattedTime } = trainingTimer
 const selectedCount = computed(() => training.selectedAlgorithmIds.length)
 const totalAlgorithms = computed(() => training.algorithms.length)
 const currentAlgorithm = computed(() => training.currentAlgorithm)
-const renderKey = computed(() => `${training.currentAlgorithmId ?? 'empty'}-${training.currentScramble}`)
 
 const selectedStats = computed(() => {
     return training.algorithms
@@ -111,14 +109,26 @@ function stopTraining() {
     trainingTimer.reset()
 }
 
-onMounted(() => {
+async function handleAuthUpdated() {
+    trainingTimer.reset()
+    lastSolveMs.value = null
+    await training.refreshUserStats()
+}
+
+onMounted(async () => {
     if (training.tipiAlgoritmo.length === 0) {
-        training.loadTypes()
+        await training.loadTypes()
+    } else {
+        await training.refreshUserStats()
     }
+
+    await training.applyTutorialTrainingRequest()
+    window.addEventListener('auth-updated', handleAuthUpdated)
 })
 
 onBeforeUnmount(() => {
     training.stopTraining()
+    window.removeEventListener('auth-updated', handleAuthUpdated)
 })
 
 watch(() => training.currentScramble, () => {
@@ -165,10 +175,8 @@ watch(selectedCount, (count) => {
             />
             
             <TrainingCubePreview
-                :rendererMoves="training.currentRendererMoves"
-                :fallbackImage="currentAlgorithm?.imagePath"
+                :fallbackImage="currentAlgorithm?.imgpath"
                 :alt="'Caso training'"
-                :renderKey="renderKey"
             />
 
 
@@ -215,78 +223,12 @@ watch(selectedCount, (count) => {
     padding: 0.25rem 0 0.5rem;
 }
 
-.top-row {
-    width: 100%;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
-    gap: 0.75rem;
-}
-
-.scramble-panel {
-    min-width: 0;
-    min-height: 5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.25rem;
-    padding: 0.65rem 0.85rem;
-    border-left: 3px solid var(--vueGreen);
-    background: var(--color-background-soft);
-}
-
-.scramble-panel span,
 .stats-strip span {
     color: var(--color-text);
     font-size: 0.82rem;
     font-weight: 700;
     opacity: 0.72;
     text-transform: uppercase;
-}
-
-.scramble-panel strong {
-    color: var(--color-heading);
-    font-family: monospace;
-    font-size: clamp(1.2rem, 2vw, 1.9rem);
-    font-weight: 800;
-    line-height: 1.25;
-    overflow-wrap: anywhere;
-}
-
-.scramble-panel p {
-    margin: 0;
-    color: var(--color-text);
-    opacity: 0.8;
-}
-
-.training-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.training-actions button {
-    min-width: 5rem;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    color: var(--color-text);
-    background: var(--color-background-soft);
-    font-weight: 800;
-    transition:
-        color 0.2s,
-        border-color 0.2s,
-        background-color 0.2s;
-}
-
-.training-actions button:hover:not(:disabled),
-.training-actions button:focus-visible:not(:disabled) {
-    color: var(--vueGreen);
-    border-color: var(--vueGreen);
-    background: hsla(160, 100%, 37%, 0.12);
-}
-
-.training-actions button:disabled {
-    cursor: not-allowed;
-    opacity: 0.45;
 }
 
 .stats-strip {
@@ -319,17 +261,6 @@ watch(selectedCount, (count) => {
         grid-template-columns: 1fr;
     }
 
-    .top-row {
-        grid-template-columns: 1fr;
-    }
-
-    .training-actions {
-        height: 2.5rem;
-    }
-
-    .training-actions button {
-        flex: 1 1 0;
-    }
 }
 
 @media (max-width: 620px) {
