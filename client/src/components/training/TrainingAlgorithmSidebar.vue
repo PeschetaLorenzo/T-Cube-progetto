@@ -150,8 +150,15 @@ function onImageError(idAlg) {
                                 type="checkbox"
                                 :checked="isSelected(algoritmo.idAlg)"
                                 @click.stop="emit('toggleAlgorithm', algoritmo.idAlg)"
-                            >
+                                >
+                                <div class="bubble-cell">
+                                    <div class="bubble">
+                                        {{ algoritmo.mosse || 'Nessuna mossa' }}
+                                    </div>
+                                </div>
                         </td>
+
+                        
                     </tr>
                 </tbody>
             </table>
@@ -241,6 +248,47 @@ th, td {
     text-align: center;
     vertical-align: middle;
     font-size: 0.9rem;
+}
+
+.bubble-cell {
+    position: relative;
+    width: 0;
+    padding: 0;
+
+}
+
+.bubble {
+    display: none;
+    position: absolute;
+    left: -280px;
+    top: -50px;
+    transform: translateY(-50%) translateX(10px);
+    min-width: 120px;
+    max-width: 300px;
+    background: var(--color-background-soft);
+    color: var(--color-text);
+    border: 2px solid var(--vueGreen);
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    padding: 0.7em 1em;
+    font-size: 0.95em;
+    z-index: 1000;
+    white-space: pre-line;
+    pointer-events: none;
+    text-wrap-mode: nowrap;
+}
+
+tr:hover
+{
+    .bubble {
+        display: block;
+        animation: fadeIn 0.18s;
+    } 
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-50%) translateX(0); }
+    to { opacity: 1; transform: translateY(-50%) translateX(10px); }
 }
 
 th {

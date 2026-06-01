@@ -26,7 +26,7 @@ const imageBroken = ref(false)
 const cubeRef = ref(null)
 const imageSrc = computed(() => resolvePublicPath(props.imagePath))
 const algorithmMoves = computed(() => splitAlgorithm(props.algorithm))
-const canRenderCube = computed(() => Boolean(props.cubeState) || algorithmMoves.value.length > 0)
+const canRenderCube = computed(() => Boolean(props.cubeState) /*|| algorithmMoves.value.length > 0*/)
 const canPlayAnimation = computed(() => algorithmMoves.value.length > 0)
 const hasImage = computed(() => Boolean(imageSrc.value) && !imageBroken.value)
 const fallbackMessage = computed(() => {
@@ -44,15 +44,7 @@ function playCubeAnimation() {
 
 <template>
     <section class="cube-preview" aria-label="Anteprima cubo">
-        <img
-            v-if="hasImage"
-            :src="imageSrc"
-            :alt="alt"
-            loading="lazy"
-            @error="imageBroken = true"
-        >
-
-        <div v-else-if="canRenderCube" class="cube-render">
+        <div v-if="canRenderCube" class="cube-render">
             <Cubo
                 ref="cubeRef"
                 :key="`${cubeState ?? 'solved'}-${algorithm}`"
@@ -72,6 +64,15 @@ function playCubeAnimation() {
                 &#9654;
             </button>
         </div>
+        
+        <img
+            v-else-if="hasImage"
+            :src="imageSrc"
+            :alt="alt"
+            loading="lazy"
+            @error="imageBroken = true"
+        >
+
 
         <div v-else class="preview-placeholder" role="status">
             <strong>Cubo</strong>

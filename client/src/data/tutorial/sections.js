@@ -26,8 +26,7 @@ export const tutorialSections = [
                     'Tieni la croce sul lato inferiore quando inizi a sentirti più sicuro.'
                 ],
                 contentNotes: [
-                    'Inserire qui una foto chiara della croce corretta e una della croce non allineata.',
-                    'Aggiungere una spiegazione breve sulla relazione tra centro e spigolo.'
+                    'ATTENZIONE, la croce deve essere allineata correttamente'
                 ],
                 trainingLink: ''
             }
@@ -51,8 +50,7 @@ export const tutorialSections = [
                     'Se l’angolo è bloccato sotto, estrailo con lo stesso trigger e riprova.'
                 ],
                 contentNotes: [
-                    'Inserire immagini per i tre casi principali di orientamento angolo.',
-                    'Espandere la spiegazione con un esempio colore-bianco-verde-rosso.'
+                    
                 ],
                 trainingLink: ''
             }
@@ -76,8 +74,7 @@ export const tutorialSections = [
                     'Se lo spigolo deve andare a sinistra, usa il caso specchiato.'
                 ],
                 contentNotes: [
-                    'Inserire due render: inserimento a destra e inserimento a sinistra.',
-                    'Aggiungere algoritmo specchiato quando il database training lo conterrà.'
+                    'Potrebbe capitare anche un inserimento sul lato sinistro, ripete le mosse in modo specchiato'
                 ],
                 trainingLink: ''
             }
@@ -101,8 +98,7 @@ export const tutorialSections = [
                     'Con la linea, tienila orizzontale.'
                 ],
                 contentNotes: [
-                    'Aggiungere immagini per Dot, L-shape e I-shape.',
-                    'Collegare ogni forma al trainer 2-look OLL.'
+                    
                 ],
                 trainingLink: trainingTargets.twoLookOll1
             }
@@ -118,16 +114,15 @@ export const tutorialSections = [
                 id: 'oll-sune',
                 title: 'Caso Sune',
                 description: 'Uno dei primi casi utili per orientare gli angoli gialli.',
-                imagePath: '/cube image/2OLL/Dot Shape.png',
-                cubeState: null,
+                imagePath: '/cube image/OLL/27.png',
+                cubeState: 'RUFUUUUULBBURRRRRRBFUFFFFFFDDDDDDDDDFRRLLLLLLLLUBBBBBB',
                 algorithm: "R U R' U R U2 R'",
                 tips: [
                     'Riconosci il faro giallo laterale prima di partire.',
                     'Mantieni il ritmo del trigger R U R\'.'
                 ],
                 contentNotes: [
-                    'Inserire confronto tra Sune e Anti-Sune.',
-                    'Aggiungere link a tutti i casi OLL quando saranno caricati.'
+                    'Potrebbe capitare anche un inserimento sul lato sinistro, ripete le mosse in modo specchiato'
                 ],
                 trainingLink: trainingTargets.twoLookOll2
             }
@@ -151,8 +146,7 @@ export const tutorialSections = [
                     'Cerca i due blocchi già risolti per orientare il caso.'
                 ],
                 contentNotes: [
-                    'Inserire diagramma frecce della permutazione.',
-                    'Collegare in futuro il singolo algoritmo al filtro training specifico.'
+                    "Questo non è l'unico caso possibile, apri la sezione trainer per impararli tutti!"
                 ],
                 trainingLink: trainingTargets.twoLookPll1
             }
@@ -175,8 +169,8 @@ export const tutorialSections = [
                     
                 ],
                 contentNotes: [
-                    'Inserire diagramma frecce della permutazione.',
-                    'Collegare in futuro il singolo algoritmo al filtro training specifico.'
+                    'ATTENZIONE, il cubo deve essere orientato correttamente',
+                    'In alcuni casi potrebbe essere necessario eseguire più volte questo passaggio'
                 ],
                 trainingLink: trainingTargets.twoLookPll2
             }
@@ -218,15 +212,14 @@ export const tutorialSections = [
                 title: 'Coppia base',
                 description: 'Cerca angolo e spigolo, separali se sono attaccati male e inserisci la coppia pronta.',
                 imagePath: '',
-                cubeState: null,
+                cubeState: 'UULUUFUUFRRUBRRURRFFDFFUFFFDDRDDDDDDBLLLLLLLLBRRBBBBBB',
                 algorithm: "U R U' R'",
                 tips: [
                     'Rallenta e guarda avanti: il vantaggio del F2L nasce dal riconoscimento.',
                     'Allenati prima con slot frontali, poi passa agli slot posteriori.'
                 ],
                 contentNotes: [
-                    'Inserire un render per coppia separata, coppia formata e inserimento.',
-                    'Aggiungere in futuro una tabella casi F2L per difficoltà.'
+                    'Caso di esempio, potrebbero capitare anche altre situazioni'                    
                 ],
                 trainingLink: trainingTargets.f2l
             }

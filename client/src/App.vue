@@ -140,6 +140,7 @@ function openTrainingFromTutorial(trainingLink) {
 }
 
 function openTutorialCategory(categoryId) {
+  console.log(selectedTutorialCategoryId.value)
   selectedTutorialCategoryId.value = categoryId
   onPageChange('tutorial')
 }
@@ -214,6 +215,10 @@ function handleManualScramble(e) {
   newScramble(e.detail, 'manual')
 }
 
+function changeTutorialCategory(newCategory){
+  selectedTutorialCategoryId.value = newCategory
+}
+
 // Watch for timer phase changes - auto-generate scramble when timer stops
 watch(() => timerStore.phase, (newPhase, oldPhase) => {
   if (oldPhase === 'running' && newPhase === 'idle' && selectedTipoCubo.value?.scrambled && scrambleCmp.value) {
@@ -281,13 +286,13 @@ watch(selectedTipoCubo, async (tipoCubo) => {
         :stopTraining="stopTraining"
       />
     </div>
-    <div v-else-if="page == 'tutorial'" class="ms-5 tutorial-header-home">
+    <div v-else-if="page == 'tutorial' && selectedTutorialCategoryId != ''" class="ms-5 tutorial-header-home">
       <TutorialHome
       :showLabel="false"
       :categories="tutorialCategories"
       @select="openTutorialCategory"
       />
-      {{ selectedTutorialCategoryId }}
+      
     </div>
     <div v-else-if="page == 'tutorial'">
 
@@ -308,6 +313,7 @@ watch(selectedTipoCubo, async (tipoCubo) => {
         v-if="page == 'tutorial'"
         :selectedCategoryId="selectedTutorialCategoryId"
         @openTraining="openTrainingFromTutorial"
+        @changeSelectedCategory="changeTutorialCategory"
       ></tutorialPage>
       <trainingPage v-if="page == 'training'"></trainingPage>
       <login v-if="page == 'login'" class="" @closeLogin="closeLogin"></login>

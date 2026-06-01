@@ -45,6 +45,8 @@ const previousSection = computed(() => categorySections.value[activeSectionIndex
 const nextSection = computed(() => categorySections.value[activeSectionIndex.value + 1] ?? null)
 
 function selectCategory(categoryId) {
+    console.log(categoryId)
+    emit('changeSelectedCategory', categoryId)
     activeCategoryId.value = categoryId
     const firstSection = getSectionsByCategory(tutorialSections, categoryId)[0]
     activeSectionId.value = firstSection?.id ?? ''
@@ -57,6 +59,7 @@ function selectSection(sectionId) {
 }
 
 function goHome() {
+    emit('changeSelectedCategory', '')
     activeCategoryId.value = ''
     activeSectionId.value = ''
     sidebarOpen.value = false
@@ -65,6 +68,7 @@ function goHome() {
 function goCategory() {
     if (activeCategory.value && categorySections.value.length > 0) {
         activeSectionId.value = categorySections.value[0].id
+        
     }
 }
 
@@ -87,6 +91,7 @@ function openTraining(trainingLink) {
 watch(
     () => props.selectedCategoryId,
     (categoryId) => {
+
         if (categoryId && categoryId !== activeCategoryId.value) {
             selectCategory(categoryId)
         }

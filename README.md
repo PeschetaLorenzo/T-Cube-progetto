@@ -88,6 +88,7 @@ Elencare i processi principali:
 | P1 | Login/registrazione | Salvataggio dati utente |
 | P2 | Nuovo tempo - prova | Aggiunta di un nuovo tempo |
 | P3 | Nuovo tempo - allenamento | Aggiunta di un nuovo tempo |
+| P3 | Risoluzione del cubo | Calcola le mosse per risolvare il cubo |
 
 Spiegare come i dati si muovono tra processi e archivi dati.
 
@@ -108,11 +109,6 @@ I requisiti funzionali descrivono ciò che il sistema deve fare.
 | RF-05 | Mostrare un tutorial | Alta |
 | RF-06 | Risolvere automaticamente da uno scramble | Media |
 | RF-07 | Download/Upload dei propri tempi | Media |
-
-Esempio:
-
-- RF-01: Il sistema deve consentire la registrazione degli utenti.  
-- RF-02: Il sistema deve validare le credenziali prima di concedere l’accesso.  
 
 ---
 
@@ -192,7 +188,6 @@ Inserire il diagramma E/R qui.
 
 # 7. Struttura dell’Interfaccia (Markup)
 
-*(Da completare nelle versioni future)*
 
 ## 7.1 Struttura delle Pagine
 
@@ -241,15 +236,17 @@ Inserire il diagramma E/R qui.
 
 - Miglioramenti pianificati  
 - Refactoring architetturale  
-- Ottimizzazione delle performance  
+- Ottimizzazione delle performance
 - Estensione funzionalità  
-
+    Aumento dei tipi di cubo gestiti
 ---
 
 # 10. Glossario
 
 | Termine | Definizione |
 |----------|------------|
-| | |
+| scramble | sequenza di mosse che porta al mescolamento del cubo |
+| algoritmo | sequenza di mosse che esegue un passaggio particolare |
+
 
 ---

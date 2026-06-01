@@ -22,14 +22,14 @@ const emit = defineEmits(['training'])
             <span class="step-index">Step {{ index + 1 }}</span>
             <h3>{{ step.title }}</h3>
             <p>{{ step.description }}</p>
-            <!--
+            
             <section v-if="step.contentNotes?.length" class="author-notes" aria-label="Note contenuti">
-                <strong>Note contenuto</strong>
+                <strong>Note</strong>
                 <ul>
                     <li v-for="note in step.contentNotes" :key="note">{{ note }}</li>
                 </ul>
             </section>
-            -->
+            
         </div>
 
         <TutorialCubePreview

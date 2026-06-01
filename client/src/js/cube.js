@@ -46,11 +46,9 @@ export function generateScramble(length) {
 }
 
 export function displayScramble(scramble) {
-  console.log(scramble)
   return scramble.map((move) => {
     const normalizedMove = move.toLowerCase()
     const face = normalizedMove[0].toUpperCase()
-    console.log(face)
     const amount = normalizedMove[1]
 
     if (amount === '3' || amount === "'") return `${face}'`

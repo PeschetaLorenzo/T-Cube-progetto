@@ -1,5 +1,7 @@
 <script setup>
 import TutorialCard from './TutorialCard.vue'
+import NotazioneCard from './NotazioneCard.vue';
+import { notazioni } from '@/data/tutorial/notazione.js';
 
 defineProps({
     categories: {
@@ -24,14 +26,27 @@ const emit = defineEmits(['select'])
                 Percorsi guidati, algoritmi copiabili, preview del cubo e collegamenti diretti al training.
             </p>
         </div>
-
+        
         <div class="category-grid">
             <TutorialCard
-                v-for="category in categories"
-                :key="category.id"
-                :category="category"
-                @select="emit('select', $event)"
+            v-for="category in categories"
+            :key="category.id"
+            :category="category"
+            @select="emit('select', $event)"
             />
+        </div>
+        
+        <h2 id="tutorial-title"  v-if="showLabel">Notazione</h2>
+        <div v-for="group in notazioni" v-if="showLabel">
+            <p class="subtitle">{{group.title }}</p>
+            <p >{{group.description }}</p>
+            <div class="notation-grid"  >
+                <NotazioneCard
+                    v-for="not in group.moves"
+                    :notazione="not"
+                />
+            </div>
+
         </div>
     </section>
 </template>
@@ -65,6 +80,13 @@ h2 {
     font-size: clamp(1.6rem, 2.4vw, 2.3rem);
 }
 
+.subtitle {
+    margin: 0;
+    color: var(--color-heading);
+    font-size: clamp(1rem, 1.5vw, 2rem);
+    font-weight: bold;
+}
+
 p {
     margin: 0;
     line-height: 1.55;
@@ -74,6 +96,35 @@ p {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
+}
+
+.notation-grid {
+    display: grid;
+    grid-template-columns: repeat(6 , minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+section::-webkit-scrollbar {
+    width: 8px;
+}
+
+section::-webkit-scrollbar-track {
+    background: var(--color-background-soft);
+}
+
+section::-webkit-scrollbar-thumb {
+    background: var(--vueGreen);
+    border-radius: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+    section {
+        scrollbar-color: var(--vueGreen) var(--color-background-mute);
+    }
+
+    section::-webkit-scrollbar-track {
+        background: var(--color-background-mute);
+    }
 }
 
 @media (max-width: 980px) {
