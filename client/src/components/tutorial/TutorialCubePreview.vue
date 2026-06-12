@@ -83,7 +83,7 @@ function playCubeAnimation() {
 
 <style scoped>
 .cube-preview {
-    min-height: 220px;
+    min-height: clamp(12rem, 30vh, 13.75rem);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -95,14 +95,14 @@ function playCubeAnimation() {
 
 img {
     width: min(260px, 86%);
-    max-height: 210px;
+    max-height: min(210px, 36vh);
     object-fit: contain;
 }
 
 .cube-render {
     position: relative;
-    width: 240px;
-    height: 220px;
+    width: min(240px, 100%);
+    height: clamp(12rem, 30vh, 13.75rem);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -166,5 +166,19 @@ img {
     font-size: 0.9rem;
     line-height: 1.35;
     opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+    .cube-preview {
+        min-height: 10rem;
+    }
+
+    .cube-render {
+        height: 10rem;
+    }
+
+    .cube-render :deep(.scene) {
+        transform: scale(0.42);
+    }
 }
 </style>

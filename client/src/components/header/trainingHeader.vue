@@ -47,7 +47,7 @@
     margin-left: 1rem;
     min-width: 0rem;
     min-height: 5rem;
-    width: 50vw;
+    width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -117,12 +117,28 @@
         grid-template-columns: 1fr;
     }
 
+    .scramble-panel {
+        margin-left: 0;
+        min-height: 4rem;
+    }
+
     .training-actions {
         height: 2.5rem;
     }
 
     .training-actions button {
         flex: 1 1 0;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .top-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+    }
+
+    .training-actions {
+        height: auto;
     }
 }
 

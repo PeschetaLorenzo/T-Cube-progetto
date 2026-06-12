@@ -51,7 +51,7 @@ const emit = defineEmits(['training'])
 <style scoped>
 .tutorial-step {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(250px, 0.9fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(15rem, 0.9fr);
     gap: 1rem;
     padding: 1rem;
     border: 1px solid var(--color-border);
@@ -117,6 +117,11 @@ p {
 @media (max-width: 780px) {
     .tutorial-step {
         grid-template-columns: 1fr;
+        padding: 0.85rem;
+    }
+
+    h3 {
+        font-size: 1.2rem;
     }
 }
 </style>

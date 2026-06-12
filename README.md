@@ -182,7 +182,7 @@ I requisiti non funzionali definiscono attributi di qualità.
 
 Inserire il diagramma E/R qui.
 
-![SchemaE/R](image/schemaER.png)
+![SchemaE/R](image/SchemaDB.svg)
 
 ---
 

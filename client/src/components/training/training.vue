@@ -9,6 +9,7 @@ import TrainingTimerPanel from './TrainingTimerPanel.vue'
 
 const training = useTrainingStore()
 const lastSolveMs = ref(null)
+const sidebarOpen = ref(false)
 
 const timerEnabled = computed(() => {
     return training.isTrainingActive
@@ -98,6 +99,10 @@ async function onSelectType(idTipoAlg) {
     await training.selectType(idTipoAlg)
 }
 
+function closeSidebar() {
+    sidebarOpen.value = false
+}
+
 function startTraining() {
     trainingTimer.reset()
     lastSolveMs.value = null
@@ -129,6 +134,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     training.stopTraining()
     window.removeEventListener('auth-updated', handleAuthUpdated)
+    document.body.classList.remove('no-scroll')
 })
 
 watch(() => training.currentScramble, () => {
@@ -142,26 +148,43 @@ watch(selectedCount, (count) => {
         stopTraining()
     }
 })
+
+watch(sidebarOpen, (open) => {
+    document.body.classList.toggle('no-scroll', open)
+})
 </script>
 
 <template>
     <main class="training-page">
-        <TrainingAlgorithmSidebar
-            :tipiAlgoritmo="training.tipiAlgoritmo"
-            :selectedTypeId="training.selectedTypeId"
-            :algorithms="training.algorithms"
-            :selectedIds="training.selectedAlgorithmIds"
-            :statsByAlg="training.statsByAlg"
-            :currentAlgorithmId="training.currentAlgorithmId"
-            :loading="training.loadingAlgorithms"
-            :loadingTypes="training.loadingTypes"
-            @selectType="onSelectType"
-            @toggleAlgorithm="training.toggleAlgorithm"
-            @selectAll="training.selectAllAlgorithms"
-            @clearSelection="training.clearSelectedAlgorithms"
-        />
+        <div v-if="sidebarOpen" class="training-backdrop" @click="closeSidebar"></div>
+
+        <aside :class="['training-sidebar-drawer', { open: sidebarOpen }]">
+            <div class="mobile-sidebar-head">
+                <strong>Algoritmi</strong>
+                <button type="button" aria-label="Chiudi algoritmi" @click="closeSidebar">x</button>
+            </div>
+            <TrainingAlgorithmSidebar
+                :tipiAlgoritmo="training.tipiAlgoritmo"
+                :selectedTypeId="training.selectedTypeId"
+                :algorithms="training.algorithms"
+                :selectedIds="training.selectedAlgorithmIds"
+                :statsByAlg="training.statsByAlg"
+                :currentAlgorithmId="training.currentAlgorithmId"
+                :loading="training.loadingAlgorithms"
+                :loadingTypes="training.loadingTypes"
+                @selectType="onSelectType"
+                @toggleAlgorithm="training.toggleAlgorithm"
+                @selectAll="training.selectAllAlgorithms"
+                @clearSelection="training.clearSelectedAlgorithms"
+            />
+        </aside>
 
         <section class="training-workspace">
+            <div class="mobile-training-toolbar">
+                <button type="button" @click="sidebarOpen = true">
+                    Algoritmi {{ selectedCount }}/{{ totalAlgorithms }}
+                </button>
+            </div>
 
             <FormAlert v-if="training.error" :message="training.error" type="error" />
             <FormAlert v-if="training.lastSaveError" :message="training.lastSaveError" type="warning" />
@@ -212,6 +235,18 @@ watch(selectedCount, (count) => {
     gap: 1.25rem;
 }
 
+.training-sidebar-drawer {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.mobile-sidebar-head,
+.mobile-training-toolbar,
+.training-backdrop {
+    display: none;
+}
+
 .training-workspace {
     min-width: 0;
     min-height: 0;
@@ -221,6 +256,17 @@ watch(selectedCount, (count) => {
     justify-content: space-between;
     gap: 0.9rem;
     padding: 0.25rem 0 0.5rem;
+}
+
+.mobile-training-toolbar button,
+.mobile-sidebar-head button {
+    min-height: 2.35rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-background-soft);
+    font-weight: 800;
+    cursor: pointer;
 }
 
 .stats-strip span {
@@ -257,15 +303,78 @@ watch(selectedCount, (count) => {
 
 @media (max-width: 900px) {
     .training-page {
-        height: auto;
         grid-template-columns: 1fr;
     }
 
+    .training-sidebar-drawer {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: var(--z-drawer);
+        width: min(92vw, var(--sidebar-width));
+        height: 100dvh;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: var(--color-background);
+        border-right: 1px solid var(--color-border);
+        transform: translateX(-105%);
+        transition: transform var(--transition-fast);
+    }
+
+    .training-sidebar-drawer.open {
+        transform: translateX(0);
+    }
+
+    .training-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: var(--z-overlay);
+        display: block;
+        background: rgba(0, 0, 0, 0.44);
+    }
+
+    .mobile-sidebar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .mobile-sidebar-head strong {
+        color: var(--color-heading);
+        font-weight: 900;
+    }
+
+    .mobile-sidebar-head button {
+        width: 2.35rem;
+    }
+
+    .mobile-training-toolbar {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .mobile-training-toolbar button {
+        width: min(100%, 16rem);
+    }
+
+    .training-workspace {
+        min-height: calc(100dvh - 12rem);
+    }
 }
 
 @media (max-width: 620px) {
     .stats-strip {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .training-workspace {
+        gap: 0.55rem;
+        min-height: auto;
     }
 }
 </style>

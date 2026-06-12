@@ -415,9 +415,6 @@ onBeforeUnmount(() => {
 <template>
     <div class="chart-panel">
         <div class="chart-controls">
-            <div class="control-group">
-                <button type="button" :disabled="!canPanLeft" aria-label="Mostra solve precedenti" @click="panSolves(-1)">&lt;</button>
-            </div>
             <div class="control-group" aria-label="Zoom asse X">
                 <span class="axis-label">X</span>
                 <button type="button" :disabled="!canZoomXOut" aria-label="Riduci zoom asse X" @click="zoomX(-1)">-</button>
@@ -425,17 +422,15 @@ onBeforeUnmount(() => {
             </div>
             
             <div class="control-group" aria-label="Scorrimento solve">
+                <button type="button" :disabled="!canPanLeft" aria-label="Mostra solve precedenti" @click="panSolves(-1)">&lt;</button>
                 <button id="btnReset" type="button" aria-label="Torna alle ultime 20 solve" @click="resetZoom">↻</button>
+                <button type="button" :disabled="!canPanRight" aria-label="Mostra solve successive" @click="panSolves(1)">&gt;</button>
             </div>
 
             <div class="control-group" aria-label="Zoom asse Y">
                 <span class="axis-label">Y</span>
                 <button type="button" :disabled="!canZoomYOut" aria-label="Riduci zoom asse Y" @click="zoomY(-1)">-</button>
                 <button type="button" :disabled="!canZoomYIn" aria-label="Aumenta zoom asse Y" @click="zoomY(1)">+</button>
-            </div>
-
-            <div class="control-group">
-                <button type="button" :disabled="!canPanRight" aria-label="Mostra solve successive" @click="panSolves(1)">&gt;</button>
             </div>
         </div>
         <div class="chart-area">

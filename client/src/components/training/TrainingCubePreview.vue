@@ -45,7 +45,7 @@ function resolveImagePath(path) {
 <style scoped>
 .preview {
     width: 100%;
-    min-height: 320px;
+    min-height: clamp(13rem, 34vh, 20rem);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -62,9 +62,9 @@ function resolveImagePath(path) {
 
 img {
     max-width: min(520px, 80%);
-    max-height: 400px;
+    max-height: min(400px, 42vh);
     object-fit: contain;
-    width: 210px;
+    width: clamp(10rem, 28vw, 13.125rem);
 }
 
 .placeholder {
@@ -82,11 +82,21 @@ img {
 
 @media (max-width: 700px) {
     .preview {
-        min-height: 250px;
+        min-height: 13rem;
     }
 
     .preview :deep(.scene) {
         transform: scale(0.48);
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .preview {
+        min-height: 9rem;
+    }
+
+    img {
+        max-height: 36vh;
     }
 }
 </style>

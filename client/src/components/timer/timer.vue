@@ -56,7 +56,7 @@ export default {
 </script>
 
 <template>
-    <section>
+    <section class="timer-panel">
         <div class="timer">
             <div
             :style="{
@@ -102,37 +102,49 @@ export default {
 
 
 <style scoped>
-    section{
+    .timer-panel{
+        width: min(100%, 60rem);
         display: flex;
         flex-direction: column;
         justify-items: center;
         align-items: center;
+        gap: clamp(0.75rem, 2vw, 1.5rem);
     }
 
     .timer{
-        font-size: 140pt;
+        width: 100%;
+        font-size: clamp(4.75rem, 17vw, 11.5rem);
         font-family: monospace;
+        line-height: 0.95;
+        text-align: center;
+        overflow-wrap: anywhere;
 
-        >small{
-            font-size: 110pt;
+        small{
+            font-size: 0.72em;
         }
     }
 
     .infos{
-        display: flex;
-        flex-direction: row;
+        width: min(100%, 42rem);
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
         justify-items: center;
         align-items: center;
         text-align: center;
 
         >div{
-            margin: 30px;
+            width: 100%;
+            padding: 0.65rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--color-background-soft);
         }
     }
 
     p{
-        font-size: 15pt;
-        margin: 10px;
+        font-size: clamp(0.95rem, 2vw, 1.25rem);
+        margin: 0.25rem;
     }
 
     .chart-panel {
@@ -148,6 +160,7 @@ export default {
     }
 
 .chart-controls {
+    width: min(100%, 34rem);
     flex: 0 0 auto;
     display: flex;
     flex-wrap: wrap;
@@ -157,6 +170,7 @@ export default {
 }
 
 .control-group {
+    flex: 1 1 12rem;
     display: inline-flex;
     justify-content: space-between;
     align-items: center;
@@ -168,8 +182,9 @@ export default {
 }
 
 button {
-    width: 50%;
-    height: 1.8rem;
+    width: 100%;
+    min-width: 4.5rem;
+    min-height: 2.25rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -202,6 +217,48 @@ button:focus-visible:not(:disabled), .checked{
 button:disabled {
     cursor: not-allowed;
     opacity: 0.45;
+}
+
+@media (max-width: 640px) {
+    .timer-panel {
+        justify-content: flex-start;
+    }
+
+    .infos {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-controls {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .timer-panel {
+        gap: 0.5rem;
+    }
+
+    .timer {
+        font-size: clamp(3.8rem, 15vh, 7rem);
+    }
+
+    .infos {
+        width: min(100%, 38rem);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.4rem;
+    }
+
+    .infos > div {
+        padding: 0.45rem;
+    }
+
+    p {
+        font-size: 0.88rem;
+    }
+
+    .chart-controls {
+        max-width: 40rem;
+    }
 }
 
 </style>

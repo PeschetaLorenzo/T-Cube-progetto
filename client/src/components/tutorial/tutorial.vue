@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { tutorialCategories } from '@/data/tutorial/categories'
 import { tutorialSections } from '@/data/tutorial/sections'
 import { findSection, getSectionsByCategory } from '@/js/tutorial'
@@ -10,7 +10,7 @@ import TutorialSidebar from './TutorialSidebar.vue'
 import TutorialStep from './TutorialStep.vue'
 import SolverPanel from './solver/SolverPanel.vue'
 
-const emit = defineEmits(['openTraining'])
+const emit = defineEmits(['openTraining', 'changeSelectedCategory'])
 
 const props = defineProps({
     selectedCategoryId: {
@@ -88,6 +88,10 @@ function openTraining(trainingLink) {
     emit('openTraining', trainingLink)
 }
 
+onBeforeUnmount(() => {
+    document.body.classList.remove('no-scroll')
+})
+
 watch(
     () => props.selectedCategoryId,
     (categoryId) => {
@@ -98,6 +102,10 @@ watch(
     },
     { immediate: true }
 )
+
+watch(sidebarOpen, (open) => {
+    document.body.classList.toggle('no-scroll', open)
+})
 </script>
 
 <template>
@@ -181,9 +189,10 @@ watch(
 <style scoped>
 .tutorial-page {
     width: 100%;
-    height: 100%;
+    height: 80vh;
     min-height: 0;
     color: var(--color-text);
+    overflow-y: auto;
 }
 
 .tutorial-content,
@@ -287,8 +296,17 @@ p {
 }
 
 @media (max-width: 850px) {
+    .tutorial-page{
+        height: 90vh;
+    }
     .tutorial-layout {
         display: block;
+    }
+
+    .tutorial-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
     }
 
     .sections-toggle {
@@ -299,16 +317,28 @@ p {
     .drawer-backdrop {
         position: fixed;
         inset: 0;
-        z-index: 30;
+        z-index: var(--z-overlay);
         display: block;
         background: rgba(0, 0, 0, 0.42);
     }
 }
 
 @media (max-width: 620px) {
+    
+
     .content-head {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .section-hero {
+        padding: 0.85rem;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .tutorial-content {
+        gap: 0.75rem;
     }
 }
 </style>

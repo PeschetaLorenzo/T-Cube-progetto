@@ -151,4 +151,20 @@ ul {
 li + li {
     margin-top: 0.25rem;
 }
+
+@media (max-width: 640px) {
+    .algorithm-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .algorithm-head > div {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    button {
+        flex: 1 1 8rem;
+    }
+}
 </style>

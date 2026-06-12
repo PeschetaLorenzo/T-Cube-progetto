@@ -160,28 +160,26 @@ const handleKeyPress = (e) => {
 
 <style scoped>
 .login-container { 
-    position: absolute;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 600px;
+    min-height: min(38rem, calc(100dvh - var(--navbar-height)));
     width: 100%;
-    top: -50px;
-    margin-top: 15rem;
+    padding: clamp(1rem, 4vw, 3rem);
 }
 
 .login-card {
   background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 100%);
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 189, 126, 0.15);
-  padding: 3rem;
+  padding: clamp(1.25rem, 5vw, 3rem);
   width: 100%;
   max-width: 400px;
   border: 2px solid rgba(0, 189, 126, 0.1);
 }
 
 .login-title {
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 9vw, 2.5rem);
   font-weight: 700;
   color: rgb(0, 189, 126);
   text-align: center;
@@ -246,6 +244,22 @@ const handleKeyPress = (e) => {
 .link:hover {
   border-bottom-color: rgb(0, 189, 126);
   padding-bottom: 2px;
+}
+
+@media (max-width: 700px) and (orientation: landscape) {
+  .login-container {
+    min-height: auto;
+    align-items: flex-start;
+    padding-top: 0.5rem;
+  }
+
+  .login-form {
+    gap: 0.9rem;
+  }
+
+  .divider {
+    margin: 0.9rem 0;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

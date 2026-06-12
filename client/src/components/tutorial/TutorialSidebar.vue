@@ -124,14 +124,15 @@ button span {
     .tutorial-sidebar {
         position: fixed;
         inset: 0 auto 0 0;
-        z-index: 40;
+        z-index: var(--z-drawer);
         width: min(86vw, 340px);
+        height: 100dvh;
         max-width: none;
         padding: 1rem;
         background: var(--color-background);
         border-right: 1px solid var(--color-border);
         transform: translateX(-105%);
-        transition: transform 0.2s ease;
+        transition: transform var(--transition-fast);
     }
 
     .tutorial-sidebar.open {

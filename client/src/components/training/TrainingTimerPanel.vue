@@ -112,4 +112,19 @@ function formatMs(value) {
         font-size: clamp(4rem, 19vw, 7rem);
     }
 }
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .timer-panel {
+        gap: 0.25rem;
+    }
+
+    .timer-value {
+        font-size: clamp(3.3rem, 17vh, 5.5rem);
+    }
+
+    .timer-status,
+    .solve-info {
+        font-size: 0.9rem;
+    }
+}
 </style>

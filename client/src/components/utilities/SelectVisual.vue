@@ -30,15 +30,16 @@
 </script>
 
 <template>
-    <header>
+    <div class="select-visual">
         <p>{{ labelText }}</p>        
         <select :disabled="disabled" :value="modelValue" @change="onChange">
             <option v-for="(text, index) in optionTexts" :key="index" :value="optionValues[index]">
                 {{ text }}
             </option>
         </select>
-    </header>
+    </div>
 </template>
+
 
 <style scoped>
     header {

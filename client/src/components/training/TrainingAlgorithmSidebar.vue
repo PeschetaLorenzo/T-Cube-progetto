@@ -168,7 +168,7 @@ function onImageError(idAlg) {
 
 <style scoped>
 .training-sidebar {
-    height: 100%;
+    height: 80vh;
     min-width: 300px;
     max-width: 390px;
     display: flex;
@@ -322,8 +322,8 @@ tbody tr.current {
 
 img,
 .image-placeholder {
-    width: 42px;
-    height: 42px;
+    width: clamp(2.2rem, 6vw, 2.65rem);
+    height: clamp(2.2rem, 6vw, 2.65rem);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -353,7 +353,29 @@ input {
         width: 100%;
         max-width: none;
         min-width: 0;
-        height: 42vh;
+        height: 100%;
+    }
+
+    th, td {
+        padding: 0.45rem 0.3rem;
+        font-size: 0.82rem;
+    }
+
+    .bubble {
+        position: fixed;
+        left: 1rem;
+        right: 1rem;
+        top: auto;
+        bottom: 1rem;
+        transform: none;
+        min-width: 0;
+        max-width: none;
+        white-space: normal;
+        text-wrap-mode: wrap;
+    }
+
+    tr:hover .bubble {
+        transform: none;
     }
 }
 </style>

@@ -59,15 +59,21 @@
 
 <style scoped>
     aside{
-        width: max-content;
+        width: 100%;
+        height: 80vh;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow: hidden;
     }
 
     section{
-        height: 80%;
-        max-height: 80%;
+        flex: 1 1 auto;
+        min-height: 0;
         width: 100%;
         overflow-y: auto;
-        overflow: overlay;
+        
 
         direction: rtl;
         > * {
@@ -97,6 +103,12 @@
 
         section::-webkit-scrollbar-track {
             background: var(--color-background-mute);
+        }
+    }
+
+    @media (max-width: 768px) {
+        aside {
+            height: 100%;
         }
     }
 </style>

@@ -21,6 +21,23 @@
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
 
   --vueGreen: rgba(0, 189, 126, 1);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --app-padding: clamp(0.75rem, 2vw, 2rem);
+  --navbar-height: 5.75rem;
+  --sidebar-width: 24rem;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --transition-fast: 0.18s ease;
+  --z-header: 20;
+  --z-overlay: 80;
+  --z-drawer: 90;
+  --z-modal: 100;
 }
 
 /* semantic color variables for this project */
@@ -62,6 +79,7 @@
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   color: var(--color-text);
   background: var(--color-background);
   transition:
@@ -85,4 +103,28 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body.no-scroll {
+  overflow: hidden;
+  touch-action: none;
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--vueGreen);
+  outline-offset: 3px;
+}
+
+img,
+canvas,
+svg {
+  max-width: 100%;
 }

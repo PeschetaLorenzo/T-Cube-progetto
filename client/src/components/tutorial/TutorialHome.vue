@@ -37,12 +37,13 @@ const emit = defineEmits(['select'])
         </div>
         
         <h2 id="tutorial-title"  v-if="showLabel">Notazione</h2>
-        <div v-for="group in notazioni" v-if="showLabel">
+        <div v-for="group in notazioni" v-if="showLabel" :key="group.title">
             <p class="subtitle">{{group.title }}</p>
             <p >{{group.description }}</p>
             <div class="notation-grid"  >
                 <NotazioneCard
                     v-for="not in group.moves"
+                    :key="not.move"
                     :notazione="not"
                 />
             </div>
@@ -100,7 +101,7 @@ p {
 
 .notation-grid {
     display: grid;
-    grid-template-columns: repeat(6 , minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
     gap: 0.5rem;
 }
 
@@ -136,6 +137,11 @@ section::-webkit-scrollbar-thumb {
 @media (max-width: 620px) {
     .category-grid {
         grid-template-columns: 1fr;
+    }
+
+    .tutorial-home {
+        height: auto;
+        overflow: visible;
     }
 }
 </style>

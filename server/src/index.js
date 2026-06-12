@@ -6,9 +6,14 @@ import { calculateRecordValue, getSolveTimeWithPenalties, isSolveDnf } from "./s
 
 import bcrypt from "bcrypt";
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://t-cube-progetto.vercel.app'
+];
 
 const app = express();
 app.use(express.json());
+
 
 function formatRecordValue(value) {
     return Number.isFinite(value) ? value : null;
@@ -122,38 +127,22 @@ app.listen(3000, () => {
   console.log("Server avviato su porta 3000");
 });
 
-
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'http://localhost:5173')
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    res.header('Access-Control-Allow-Headers', 'Content-Type')
-    res.header('Access-Control-Allow-Credentials', 'true')
+  const origin = req.headers.origin;
 
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200)
-    }
-    next()
-})
-
-// test connessione
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Errore DB");
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
   }
-});
 
-app.post("/api/test-db", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Errore DB");
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
   }
+
+  next();
 });
 
 

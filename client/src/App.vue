@@ -74,6 +74,9 @@ const timerStore = useTimerStore()
 let currentScrambleMoves = []
 const showScramble = ref(true)
 const selectedTutorialCategoryId = ref('')
+const mobileNavOpen = ref(false)
+const timerStatsOpen = ref(false)
+const timerCubeCollapsed = ref(false)
 
 // Opzioni mostrate nella select dei tipi cubo.
 const tipiCuboTexts = computed(() => tipiCubo.value.map(opt => opt.desctipo))
@@ -86,6 +89,13 @@ const selectedTipoCubo = computed(() => {
 const canUseTimer = computed(() => {
   return page.value === 'timer' && !inputState.visible && !solveInfoModalState.visible
 })
+const hasTimerCube = computed(() => page.value === 'timer' && Boolean(selectedTipoCubo.value?.rendered))
+const hasOverlayOpen = computed(() => mobileNavOpen.value || timerStatsOpen.value)
+
+function closeResponsivePanels() {
+  mobileNavOpen.value = false
+  timerStatsOpen.value = false
+}
 
 // Ricalcola BPA/WPA quando cambiano le solve locali.
 function updatePossibleAvgs() {
@@ -131,6 +141,7 @@ function onPageChange(newPage) {
       newPage = pagePrec
     pagePrec = page.value
     page.value = newPage
+    closeResponsivePanels()
   } 
 }
 
@@ -147,6 +158,7 @@ function openTutorialCategory(categoryId) {
 
 function closeLogin(){
   page.value = pagePrec
+  closeResponsivePanels()
 }
 
 function newScramble(newScramble, source = 'auto') {
@@ -197,6 +209,7 @@ onMounted(async () => {
   updatePossibleAvgs()
 
   window.addEventListener('scramble-change', handleManualScramble)
+  window.addEventListener('keydown', handleGlobalKeydown)
 
   tipiCubo.value = await getTipiCubo()
 
@@ -208,11 +221,19 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('solves-updated', updatePossibleAvgs)
   window.removeEventListener('scramble-change', handleManualScramble)
+  window.removeEventListener('keydown', handleGlobalKeydown)
+  document.body.classList.remove('no-scroll')
 
 })
 
 function handleManualScramble(e) {
   newScramble(e.detail, 'manual')
+}
+
+function handleGlobalKeydown(e) {
+  if (e.key === 'Escape') {
+    closeResponsivePanels()
+  }
 }
 
 function changeTutorialCategory(newCategory){
@@ -226,6 +247,15 @@ watch(() => timerStore.phase, (newPhase, oldPhase) => {
     scrambleCmp.value.generateScramble()
     showScramble.value = selectedTipoCubo.value.scrambled
   }
+})
+
+watch(hasOverlayOpen, (isOpen) => {
+  document.body.classList.toggle('no-scroll', isOpen)
+}, { flush: 'post' })
+
+watch(page, () => {
+  timerStatsOpen.value = false
+  mobileNavOpen.value = false
 })
 
 // Quando il cubo 3D viene montato, applica l'ultimo scramble gia generato.
@@ -257,27 +287,48 @@ watch(selectedTipoCubo, async (tipoCubo) => {
 </script>
 
 <template>
-  <header>
-    <div>
-      <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="130px" height="130px" @click="onPageChange('login')"/>
-      <LogoMenu :page="page" @pageChange="onPageChange"/>
+  <header class="app-header">
+    <div class="brand-block">
+      <img alt="T-Cube logo" class="logo" src="./assets/logo.svg" @click="onPageChange('login')"/>
+      <LogoMenu class="desktop-nav" :page="page" @pageChange="onPageChange"/>
+      <button
+        type="button"
+        class="mobile-menu-toggle"
+        :aria-expanded="mobileNavOpen"
+        aria-label="Apri menu navigazione"
+        @click="mobileNavOpen = true"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </div>
-    <div  v-if="page == 'timer'">
-      <div class="row w-100 d-flex justify-content-center">
+
+    <div v-if="mobileNavOpen" class="app-overlay" @click="closeResponsivePanels"></div>
+    <nav :class="['mobile-nav-drawer', { open: mobileNavOpen }]" aria-label="Navigazione mobile">
+      <div class="drawer-head">
+        <strong>T-CUBE</strong>
+        <button type="button" aria-label="Chiudi menu navigazione" @click="mobileNavOpen = false">x</button>
+      </div>
+      <LogoMenu :page="page" @pageChange="onPageChange"/>
+    </nav>
+
+    <div v-if="page == 'timer'" class="header-context timer-header-context">
+      <div class="timer-header-grid">
         <SelectVisual
           :labelText="'Seleziona la tipologia di cubo'"
           :optionValues="tipiCuboValues"
           :optionTexts="tipiCuboTexts"
           :disabled="timerStore.phase != 'idle'"
           v-model="tipoCuboModel"
-          class="w-50"
+          class="cube-type-select"
         ></SelectVisual>
         <scramble v-if="showScramble" ref="scrambleCmp" @newScramble="newScramble"></scramble>
         <InputModal></InputModal>
       </div>
-      <btnScramble :hasAutoScramble="Boolean(selectedTipoCubo?.scrambled)" @btnAction="onBtnEvent"></btnScramble>
+      <btnScramble class="scramble-actions" :hasAutoScramble="Boolean(selectedTipoCubo?.scrambled)" @btnAction="onBtnEvent"></btnScramble>
     </div>
-    <div id="trainingHeader" v-else-if="page == 'training'">
+    <div id="trainingHeader" v-else-if="page == 'training'" class="header-context">
       <trainingHeader 
         :training="training"
         :guideMessage="guideMessage"
@@ -286,7 +337,7 @@ watch(selectedTipoCubo, async (tipoCubo) => {
         :stopTraining="stopTraining"
       />
     </div>
-    <div v-else-if="page == 'tutorial' && selectedTutorialCategoryId != ''" class="ms-5 tutorial-header-home">
+    <div v-else-if="page == 'tutorial' && selectedTutorialCategoryId != ''" class="header-context tutorial-header-home">
       <TutorialHome
       :showLabel="false"
       :categories="tutorialCategories"
@@ -303,70 +354,197 @@ watch(selectedTipoCubo, async (tipoCubo) => {
     
 
   </header>
-  <main :class="['row', { 'training-main': page == 'training' || page == 'tutorial' }]">
-    <aside v-if="page == 'timer'" class="col-3">
-      <asideTable class="ps-3 pe-5"></asideTable>
+  <main :class="['app-main', `${page}-main`, { 'training-main': page == 'training' || page == 'tutorial' }]">
+    <div v-if="page == 'timer' && timerStatsOpen" class="app-overlay timer-overlay" @click="timerStatsOpen = false"></div>
+    <aside v-if="page == 'timer'" :class="['timer-stats-drawer', { open: timerStatsOpen }]">
+      <div class="drawer-head timer-drawer-head">
+        <strong>Statistiche</strong>
+        <button id="btnCloseStatistics" type="button" aria-label="Chiudi statistiche" @click="timerStatsOpen = false">x</button>
+      </div>
+      <asideTable></asideTable>
     </aside>
-    <section :class="page == 'training' || page == 'tutorial' ? 'col-12 training-section' : 'col-7'">
-      <timer v-if="page == 'timer'" class="mr-3" :wpas="wpas" :bpas="bpas" :canUseTimer="canUseTimer"></timer>
+    <section :class="['page-section', { 'training-section': page == 'training' || page == 'tutorial', 'timer-section': page == 'timer' }]">
+      <div v-if="page == 'timer'" class="timer-mobile-toolbar">
+        <button class="w-100" type="button" @click="timerStatsOpen = true">Statistiche</button>
+        <button v-if="hasTimerCube && false" type="button" @click="timerCubeCollapsed = !timerCubeCollapsed">
+          {{ timerCubeCollapsed ? 'Mostra cubo' : 'Nascondi cubo' }}
+        </button>
+      </div>
+      
+      
+      <timer v-if="page == 'timer'" :wpas="wpas" :bpas="bpas" :canUseTimer="canUseTimer"></timer>
       <tutorialPage
-        v-if="page == 'tutorial'"
-        :selectedCategoryId="selectedTutorialCategoryId"
-        @openTraining="openTrainingFromTutorial"
-        @changeSelectedCategory="changeTutorialCategory"
+      v-if="page == 'tutorial'"
+      :selectedCategoryId="selectedTutorialCategoryId"
+      @openTraining="openTrainingFromTutorial"
+      @changeSelectedCategory="changeTutorialCategory"
       ></tutorialPage>
       <trainingPage v-if="page == 'training'"></trainingPage>
       <login v-if="page == 'login'" class="" @closeLogin="closeLogin"></login>
+
     </section>
-
+    
     <!--<div class="col-3"></div>-->
-
+    
   </main>
-  <Cubo v-if="page=='timer' && selectedTipoCubo?.rendered" ref="cuboCmp" class="timer-cube" :autoPlayOnTurnsChange="true"></Cubo>
+  <div v-if="hasTimerCube" :class="['timer-cube-shell', { collapsed: timerCubeCollapsed }]">
+    <button
+      type="button"
+      class="timer-cube-toggle"
+      :aria-expanded="!timerCubeCollapsed"
+      @click="timerCubeCollapsed = !timerCubeCollapsed"
+    >
+      {{ timerCubeCollapsed ? 'Cubo' : 'x' }}
+    </button>
+    <Cubo v-if="!timerCubeCollapsed" ref="cuboCmp" class="timer-cube" :autoPlayOnTurnsChange="true" style="transform: scale(0.7)"></Cubo>
+  </div>
   <BootstrapAlert></BootstrapAlert>
   <SolveInfoModal></SolveInfoModal>
   
 </template>
 
 <style scoped>
-header {
-  margin-top: 10px;
-  line-height: 1.5;
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
   width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content:space-around;
-
-  :first-child{
-    display: flex;
-    flex-direction: row;
-    width:fit-content;
-    >img{
-      margin-top: 11px;
-    }
-  }
-
-  >div{
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  }
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  backdrop-filter: blur(10px);
 }
 
-main{
-  height: 80vh;
-  max-height: 80vh;
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.logo {
+  width: clamp(4rem, 9vw, 8.125rem);
+  height: clamp(4rem, 9vw, 8.125rem);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.desktop-nav {
+  display: block;
+}
+
+.mobile-menu-toggle,
+.drawer-head button,
+.timer-mobile-toolbar button,
+.timer-cube-toggle {
+  min-height: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: var(--color-background-soft);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mobile-menu-toggle {
+  width: 2.5rem;
+  display: none;
+  place-items: center;
+  gap: 0.22rem;
+  padding: 0.45rem;
+  
+}
+
+.mobile-menu-toggle span {
+  width: 1.25rem;
+  height: 2px;
+  display: block;
+  background: currentColor;
+}
+
+.header-context {
+  min-width: 0;
+  width: 100%;
+}
+
+.timer-header-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.timer-header-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(12rem, 20rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cube-type-select {
+  width: 80%;
+  min-width: 0;
+}
+
+.scramble-actions {
+  justify-self: end;
+}
+
+.app-main {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.timer-main {
+  display: grid;
+  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
+  min-height: calc(100dvh - var(--navbar-height) - 2rem);
 }
 
 .training-main {
   width: 100%;
+  min-height: calc(100dvh - var(--navbar-height) - 1rem);
+}
+
+.page-section {
+  min-width: 0;
 }
 
 .training-section {
   height: 100%;
   max-width: 100%;
   min-width: 0;
+}
+
+.timer-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.timer-mobile-toolbar {
+  display: none;
+}
+
+.timer-stats-drawer {
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.timer-drawer-head {
+  display: none;
 }
 
 .tutorial-header-home {
@@ -390,51 +568,229 @@ main{
   padding: 0.65rem;
 }
 
-aside{
-  height: 100%;
-  max-height: 80%;
-  margin-bottom: 20px;
+.app-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: rgba(0, 0, 0, 0.44);
 }
 
+.mobile-nav-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: var(--z-drawer);
+  width: min(86vw, 22rem);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-background);
+  border-right: 1px solid var(--color-border);
+  transform: translateX(-105%);
+  transition: transform var(--transition-fast);
 
-.timer-cube{
+}
+
+.mobile-nav-drawer.open {
+  transform: translateX(0);
+  height: max-content;
+  border-bottom: 1px solid var(--color-border);
+  border-bottom-right-radius: 8px;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.drawer-head strong {
+  color: var(--color-heading);
+  font-weight: 900;
+}
+
+.drawer-head button {
+  width: 2.25rem;
+}
+
+.timer-cube-shell {
+  position: fixed;
+  right: 3rem;
+  bottom: 3rem;
+  z-index: 15;
+  width: clamp(11rem, 24vw, 20rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+
+.timer-cube-toggle {
   position: absolute;
-  z-index: 10;
-  display: block;
-  visibility: visible;
-  bottom: 5%;
-  right: 0%;
-  height: 100px;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  min-width: 2.5rem;
+  padding: 0 0.6rem;
+  pointer-events: auto;
+}
+
+.timer-cube {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
 }
 
 .timer-cube:deep(.scene) {
-  position: absolute;
-  z-index: 10;
-  display: block;
-  visibility: visible;
-  width: 500px;
-  height: 500px;
-  bottom: -100px;
-  right: 50px;
-  margin: 0px;
-  transform: scale(0.6);
+  position: static;
+  width: 100%;
+  height: 100%;
+  max-width: 500px;
+  max-height: 500px;
+  margin: 0;
+  transform: scale(0.78);
+  transform-origin: center;
 }
 
-@media (min-width: 1024px) {
-  header {
+.timer-cube-shell.collapsed {
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+}
+
+.timer-cube-shell.collapsed .timer-cube, #btnCloseStatistics {
+  display: none;
+}
+
+
+
+@media (max-width: 1024px) {
+  .app-header {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .brand-block {
+    justify-content: space-between;
+  }
+
+  .timer-header-context {
+    grid-template-columns: 1fr;
+  }
+
+  .timer-header-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scramble-actions {
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-menu-toggle {
+    display: grid;
+  }
+
+  .timer-main {
+    display: block;
+    min-height: auto;
+  }
+
+  .timer-section {
+    min-height: calc(100dvh - 14rem);
+    justify-content: flex-start;
+    padding-top: var(--space-3);
+  }
+
+  .timer-mobile-toolbar {
+    width: 100%;
     display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+    margin-bottom: var(--space-2);
+  }
+
+  .timer-mobile-toolbar button {
+    flex: 1 1 9rem;
+    max-width: 13rem;
+  }
+
+  .timer-stats-drawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: var(--z-drawer);
+    width: min(92vw, var(--sidebar-width));
+    height: 100dvh;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    background: var(--color-background);
+    border-right: 1px solid var(--color-border);
+    transform: translateX(-105%);
+    transition: transform var(--transition-fast);
+  }
+
+  .timer-stats-drawer.open {
+    transform: translateX(0);
+  }
+
+  .timer-drawer-head {
+    display: flex;
+  }
+
+  #btnCloseStatistics{
+    display: block;
+  }
+
+  .timer-cube-shell {
+    width: min(42vw, 12rem);
+    opacity: 0.95;
+  }
+
+  .tutorial-header-home {
+    display: none;
+  }
+
+  .cube-type-select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    position: relative;
+    padding-top: 0;
   }
 
   .logo {
-    margin: 0 2rem 0 0;
+    width: 3.8rem;
+    height: 3.8rem;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .app-header {
+    position: relative;
   }
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
+  .timer-header-grid {
+    grid-template-columns: minmax(10rem, 16rem) minmax(0, 1fr);
+  }
+
+  .timer-section {
+    min-height: auto;
+  }
+
+  .timer-cube-shell {
+    width: min(22vw, 10rem);
   }
 }
 </style>
